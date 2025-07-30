@@ -1,6 +1,8 @@
 import math
 import tkinter as tk
 
+from automaton import Automaton
+
 CELL_SIZE = 30
 GRID_RADIUS = 8
 WINDOW_WIDTH = 800
@@ -60,54 +62,6 @@ class HexCanvas(tk.Canvas):
                     self.draw_hex(q, r)
 
 
-class Automaton:
-    def __init__(self, canvas, rule="B3/S23"):
-        self.canvas = canvas
-        self.state = {}
-        self.parse_rule(rule)
-
-    def parse_rule(self, rule):
-        try:
-            birth, survive = rule.split("/")
-            self.birth = [int(n) for n in birth[1:]]
-            self.survive = [int(n) for n in survive[1:]]
-            self.rule = rule
-        except Exception:
-            self.birth = [3]
-            self.survive = [2, 3]
-            self.rule = "B3/S23"
-
-    def toggle_cell(self, q, r):
-        key = (q, r)
-        if key in self.state:
-            del self.state[key]
-            self.canvas.itemconfig(self.canvas.cells[key], fill="white")
-        else:
-            self.state[key] = 1
-            self.canvas.itemconfig(self.canvas.cells[key], fill="black")
-
-    def neighbors(self, q, r):
-        directions = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
-        for dq, dr in directions:
-            yield q + dq, r + dr
-
-    def step(self):
-        counts = {}
-        for q, r in self.state:
-            for nq, nr in self.neighbors(q, r):
-                counts[(nq, nr)] = counts.get((nq, nr), 0) + 1
-        new_state = {}
-        for cell, count in counts.items():
-            if cell in self.state:
-                if count in self.survive:
-                    new_state[cell] = 1
-            else:
-                if count in self.birth:
-                    new_state[cell] = 1
-        for cell in self.canvas.cells:
-            color = "black" if cell in new_state else "white"
-            self.canvas.itemconfig(self.canvas.cells[cell], fill=color)
-        self.state = new_state
 
 
 def main():
@@ -131,7 +85,12 @@ def main():
     canvas = HexCanvas(root)
     canvas.pack(expand=True, fill="both", padx=10, pady=10)
 
-    automaton = Automaton(canvas)
+    automaton = Automaton()
+
+    def refresh_canvas():
+        for cell in canvas.cells:
+            color = "black" if cell in automaton.state else "white"
+            canvas.itemconfig(canvas.cells[cell], fill=color)
 
     # Create control frame
     control_frame = tk.Frame(root)
@@ -156,6 +115,8 @@ def main():
         for (q, r), item in canvas.cells.items():
             if item == clicked_item:
                 automaton.toggle_cell(q, r)
+                color = "black" if (q, r) in automaton.state else "white"
+                canvas.itemconfig(item, fill=color)
                 break
 
     canvas.bind("<Button-1>", on_click)
@@ -171,6 +132,7 @@ def main():
     def run_step():
         if running["active"]:
             automaton.step()
+            refresh_canvas()
             root.after(200, run_step)
 
     start_stop_button.config(command=toggle_running, bg="lightgreen")
@@ -179,8 +141,7 @@ def main():
     # Add clear button
     def clear_grid():
         automaton.state = {}
-        for cell in canvas.cells:
-            canvas.itemconfig(canvas.cells[cell], fill="white")
+        refresh_canvas()
     
     tk.Button(control_frame, text="Clear", command=clear_grid).pack(side=tk.LEFT, padx=5)
 
