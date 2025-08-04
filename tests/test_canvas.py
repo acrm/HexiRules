@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 # Skip GUI tests if no display is available (e.g., in CI environments)
 try:
     import tkinter as tk
+
     # Test if we can create a Tk instance
     test_root = tk.Tk()
     test_root.withdraw()
@@ -22,12 +23,12 @@ class TestHexCanvas(unittest.TestCase):
     def setUp(self):
         if not GUI_AVAILABLE:
             self.skipTest("GUI not available (no display)")
-        
+
         self.root = tk.Tk()
         self.root.withdraw()  # Hide window during tests
 
     def tearDown(self):
-        if hasattr(self, 'root'):
+        if hasattr(self, "root"):
             self.root.destroy()
 
     def test_canvas_creation(self):

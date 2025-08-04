@@ -1,6 +1,6 @@
 import math
 import tkinter as tk
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Any, List
 
 from automaton import Automaton
 from version import __version__
@@ -12,39 +12,51 @@ WINDOW_HEIGHT = 600
 
 
 class HexCanvas(tk.Canvas):
-    def __init__(self, master: tk.Widget, radius: int = GRID_RADIUS, 
-                 window_width: int = WINDOW_WIDTH, window_height: int = WINDOW_HEIGHT, **kwargs) -> None:
+    def __init__(
+        self,
+        master: tk.Tk,
+        radius: int = GRID_RADIUS,
+        window_width: int = WINDOW_WIDTH,
+        window_height: int = WINDOW_HEIGHT,
+        **kwargs: Any,
+    ) -> None:
         # Calculate cell size based on window dimensions to fit the grid
         max_cells_x = radius * 2 + 1
         max_cells_y = radius * 2 + 1
-        
+
         # Calculate optimal cell size to fit window
         cell_size_x = window_width / (max_cells_x * 1.5)
-        cell_size_y = (window_height - 80) / (max_cells_y * math.sqrt(3))  # Reserve space for controls
-        
+        cell_size_y = (window_height - 80) / (
+            max_cells_y * math.sqrt(3)
+        )  # Reserve space for controls
+
         cell_size = min(cell_size_x, cell_size_y)
-        
+
         # Calculate actual canvas dimensions
         canvas_width = int(cell_size * 1.5 * max_cells_x + cell_size)
         canvas_height = int(cell_size * math.sqrt(3) * max_cells_y + cell_size)
-        
-        super().__init__(master, width=canvas_width, height=canvas_height, bg="lightgray", **kwargs)
+
+        super().__init__(
+            master, width=canvas_width, height=canvas_height, bg="lightgray", **kwargs
+        )
         self.radius = radius
         self.cell_size = cell_size
-        self.cells = {}
+        self.cells: Dict[Tuple[int, int], int] = {}
         self.center_x = canvas_width // 2
         self.center_y = canvas_height // 2
         self.draw_grid()
 
-    def axial_to_pixel(self, q, r):
+    def axial_to_pixel(self, q: int, r: int) -> Tuple[float, float]:
         # Convert axial coordinates to pixel coordinates with proper centering
-        x = self.cell_size * (3/2 * q)
-        y = self.cell_size * (math.sqrt(3)/2 * q + math.sqrt(3) * r)
+        x = self.cell_size * (3 / 2 * q)
+        y = self.cell_size * (math.sqrt(3) / 2 * q + math.sqrt(3) * r)
         return x + self.center_x, y + self.center_y
 
-    def polygon_corners(self, x, y):
-        points = []
-        radius = self.cell_size * 0.98  # Make hexagons almost touch each other (remove gaps)
+    def polygon_corners(self, x: float, y: float) -> List[float]:
+        points: List[float] = []
+        radius = (
+            self.cell_size * 0.98
+        )  # Make hexagons almost touch each other (remove gaps)
         for i in range(6):
             # Start from top vertex (flat-top hexagons)
             angle = math.pi / 3 * i
@@ -53,39 +65,39 @@ class HexCanvas(tk.Canvas):
             points.extend([px, py])
         return points
 
-    def draw_hex(self, q, r, fill="white"):
+    def draw_hex(self, q: int, r: int, fill: str = "white") -> None:
         x, y = self.axial_to_pixel(q, r)
-        poly = self.create_polygon(self.polygon_corners(x, y), outline="gray", fill=fill, width=1)
+        poly = self.create_polygon(
+            self.polygon_corners(x, y), outline="gray", fill=fill, width=1
+        )
         self.cells[(q, r)] = poly
 
-    def draw_grid(self):
+    def draw_grid(self) -> None:
         for q in range(-self.radius, self.radius + 1):
             for r in range(-self.radius, self.radius + 1):
                 if abs(q + r) <= self.radius:
                     self.draw_hex(q, r)
 
 
-
-
-def main() -> None:
+def main() -> int:
     """Main application entry point."""
     try:
         root = tk.Tk()
         root.title(f"HexiRules v{__version__} - Hexagonal Cellular Automaton")
-        
+
         # Set fixed window size
         root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         root.resizable(False, False)
-        
+
         # Center the window on screen
         screen_width = root.winfo_screenwidth()
         screen_height = root.winfo_screenheight()
-        
+
         x = (screen_width - WINDOW_WIDTH) // 2
         y = (screen_height - WINDOW_HEIGHT) // 2
-        
+
         root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
-        
+
         # Create canvas that fits the window
         canvas = HexCanvas(root)
         canvas.pack(expand=True, fill="both", padx=10, pady=10)
@@ -107,15 +119,17 @@ def main() -> None:
         rule_entry = tk.Entry(control_frame, textvariable=rule_var, width=10)
         rule_entry.pack(side=tk.LEFT, padx=5)
 
-        def apply_rule():
+        def apply_rule() -> None:
             automaton.parse_rule(rule_var.get())
 
-        tk.Button(control_frame, text="Set Rule", command=apply_rule).pack(side=tk.LEFT, padx=5)
+        tk.Button(control_frame, text="Set Rule", command=apply_rule).pack(
+            side=tk.LEFT, padx=5
+        )
 
         running = {"active": False}
         start_stop_button = tk.Button(control_frame, text="Start", command=lambda: None)
 
-        def on_click(event):
+        def on_click(event: Any) -> None:
             # determine which cell was clicked
             clicked_item = canvas.find_closest(event.x, event.y)[0]
             for (q, r), item in canvas.cells.items():
@@ -127,7 +141,7 @@ def main() -> None:
 
         canvas.bind("<Button-1>", on_click)
 
-        def toggle_running():
+        def toggle_running() -> None:
             running["active"] = not running["active"]
             if running["active"]:
                 start_stop_button.config(text="Stop", bg="lightcoral")
@@ -135,7 +149,7 @@ def main() -> None:
             else:
                 start_stop_button.config(text="Start", bg="lightgreen")
 
-        def run_step():
+        def run_step() -> None:
             if running["active"]:
                 automaton.step()
                 refresh_canvas()
@@ -143,20 +157,22 @@ def main() -> None:
 
         start_stop_button.config(command=toggle_running, bg="lightgreen")
         start_stop_button.pack(side=tk.LEFT, padx=5)
-        
+
         # Add clear button
-        def clear_grid():
+        def clear_grid() -> None:
             automaton.state = {}
             refresh_canvas()
-        
-        tk.Button(control_frame, text="Clear", command=clear_grid).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(control_frame, text="Clear", command=clear_grid).pack(
+            side=tk.LEFT, padx=5
+        )
 
         root.mainloop()
-        
+
     except Exception as e:
         print(f"Error running HexiRules: {e}")
         return 1
-    
+
     return 0
 
 

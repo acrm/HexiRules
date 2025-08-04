@@ -35,6 +35,25 @@
             "program": "${workspaceFolder}/tests/test_automaton.py",
             "console": "integratedTerminal",
             "justMyCode": true
+        },
+        {
+            "name": "HexiRules: Full Code Quality Check",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/check_quality.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "HexiRules: Run CLI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cli.py",
+            "args": ["--rule", "B3/S23", "--steps", "5"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
