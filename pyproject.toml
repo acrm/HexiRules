@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hexirules"
+version = "0.0.1"
+description = "Hexagonal cellular automaton with GUI"
+readme = "README.md"
+authors = [{name = "ACRM", email = ""}]
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+keywords = ["cellular-automaton", "hexagonal", "simulation", "gui"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Topic :: Scientific/Engineering :: Artificial Life",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.scripts]
+hexirules = "main:main"
+
+[project.urls]
+"Homepage" = "https://github.com/acrm/HexiRules"
+"Bug Reports" = "https://github.com/acrm/HexiRules/issues"
+"Source" = "https://github.com/acrm/HexiRules"
+
+[tool.setuptools]
+packages = ["hexirules"]
+
+[tool.setuptools.package-dir]
+hexirules = "."
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.venv
+  | __pycache__
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

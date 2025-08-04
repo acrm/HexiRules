@@ -1,7 +1,9 @@
 import math
 import tkinter as tk
+from typing import Dict, Tuple, Optional
 
 from automaton import Automaton
+from version import __version__
 
 CELL_SIZE = 30
 GRID_RADIUS = 8
@@ -10,7 +12,8 @@ WINDOW_HEIGHT = 600
 
 
 class HexCanvas(tk.Canvas):
-    def __init__(self, master, radius=GRID_RADIUS, window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, **kwargs):
+    def __init__(self, master: tk.Widget, radius: int = GRID_RADIUS, 
+                 window_width: int = WINDOW_WIDTH, window_height: int = WINDOW_HEIGHT, **kwargs) -> None:
         # Calculate cell size based on window dimensions to fit the grid
         max_cells_x = radius * 2 + 1
         max_cells_y = radius * 2 + 1
@@ -64,88 +67,97 @@ class HexCanvas(tk.Canvas):
 
 
 
-def main():
-    root = tk.Tk()
-    root.title("HexiRules - Hexagonal Cellular Automaton")
-    
-    # Set fixed window size
-    root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-    root.resizable(False, False)
-    
-    # Center the window on screen
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    
-    x = (screen_width - WINDOW_WIDTH) // 2
-    y = (screen_height - WINDOW_HEIGHT) // 2
-    
-    root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
-    
-    # Create canvas that fits the window
-    canvas = HexCanvas(root)
-    canvas.pack(expand=True, fill="both", padx=10, pady=10)
+def main() -> None:
+    """Main application entry point."""
+    try:
+        root = tk.Tk()
+        root.title(f"HexiRules v{__version__} - Hexagonal Cellular Automaton")
+        
+        # Set fixed window size
+        root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+        root.resizable(False, False)
+        
+        # Center the window on screen
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        
+        x = (screen_width - WINDOW_WIDTH) // 2
+        y = (screen_height - WINDOW_HEIGHT) // 2
+        
+        root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
+        
+        # Create canvas that fits the window
+        canvas = HexCanvas(root)
+        canvas.pack(expand=True, fill="both", padx=10, pady=10)
 
-    automaton = Automaton()
+        automaton = Automaton()
 
-    def refresh_canvas():
-        for cell in canvas.cells:
-            color = "black" if cell in automaton.state else "white"
-            canvas.itemconfig(canvas.cells[cell], fill=color)
+        def refresh_canvas() -> None:
+            """Update canvas to reflect current automaton state."""
+            for cell in canvas.cells:
+                color = "black" if cell in automaton.state else "white"
+                canvas.itemconfig(canvas.cells[cell], fill=color)
 
-    # Create control frame
-    control_frame = tk.Frame(root)
-    control_frame.pack(pady=5)
+        # Create control frame
+        control_frame = tk.Frame(root)
+        control_frame.pack(pady=5)
 
-    rule_var = tk.StringVar(value=automaton.rule)
-    tk.Label(control_frame, text="Rule:").pack(side=tk.LEFT, padx=5)
-    rule_entry = tk.Entry(control_frame, textvariable=rule_var, width=10)
-    rule_entry.pack(side=tk.LEFT, padx=5)
+        rule_var = tk.StringVar(value=automaton.rule)
+        tk.Label(control_frame, text="Rule:").pack(side=tk.LEFT, padx=5)
+        rule_entry = tk.Entry(control_frame, textvariable=rule_var, width=10)
+        rule_entry.pack(side=tk.LEFT, padx=5)
 
-    def apply_rule():
-        automaton.parse_rule(rule_var.get())
+        def apply_rule():
+            automaton.parse_rule(rule_var.get())
 
-    tk.Button(control_frame, text="Set Rule", command=apply_rule).pack(side=tk.LEFT, padx=5)
+        tk.Button(control_frame, text="Set Rule", command=apply_rule).pack(side=tk.LEFT, padx=5)
 
-    running = {"active": False}
-    start_stop_button = tk.Button(control_frame, text="Start", command=lambda: None)
+        running = {"active": False}
+        start_stop_button = tk.Button(control_frame, text="Start", command=lambda: None)
 
-    def on_click(event):
-        # determine which cell was clicked
-        clicked_item = canvas.find_closest(event.x, event.y)[0]
-        for (q, r), item in canvas.cells.items():
-            if item == clicked_item:
-                automaton.toggle_cell(q, r)
-                color = "black" if (q, r) in automaton.state else "white"
-                canvas.itemconfig(item, fill=color)
-                break
+        def on_click(event):
+            # determine which cell was clicked
+            clicked_item = canvas.find_closest(event.x, event.y)[0]
+            for (q, r), item in canvas.cells.items():
+                if item == clicked_item:
+                    automaton.toggle_cell(q, r)
+                    color = "black" if (q, r) in automaton.state else "white"
+                    canvas.itemconfig(item, fill=color)
+                    break
 
-    canvas.bind("<Button-1>", on_click)
+        canvas.bind("<Button-1>", on_click)
 
-    def toggle_running():
-        running["active"] = not running["active"]
-        if running["active"]:
-            start_stop_button.config(text="Stop", bg="lightcoral")
-            run_step()
-        else:
-            start_stop_button.config(text="Start", bg="lightgreen")
+        def toggle_running():
+            running["active"] = not running["active"]
+            if running["active"]:
+                start_stop_button.config(text="Stop", bg="lightcoral")
+                run_step()
+            else:
+                start_stop_button.config(text="Start", bg="lightgreen")
 
-    def run_step():
-        if running["active"]:
-            automaton.step()
+        def run_step():
+            if running["active"]:
+                automaton.step()
+                refresh_canvas()
+                root.after(200, run_step)
+
+        start_stop_button.config(command=toggle_running, bg="lightgreen")
+        start_stop_button.pack(side=tk.LEFT, padx=5)
+        
+        # Add clear button
+        def clear_grid():
+            automaton.state = {}
             refresh_canvas()
-            root.after(200, run_step)
+        
+        tk.Button(control_frame, text="Clear", command=clear_grid).pack(side=tk.LEFT, padx=5)
 
-    start_stop_button.config(command=toggle_running, bg="lightgreen")
-    start_stop_button.pack(side=tk.LEFT, padx=5)
+        root.mainloop()
+        
+    except Exception as e:
+        print(f"Error running HexiRules: {e}")
+        return 1
     
-    # Add clear button
-    def clear_grid():
-        automaton.state = {}
-        refresh_canvas()
-    
-    tk.Button(control_frame, text="Clear", command=clear_grid).pack(side=tk.LEFT, padx=5)
-
-    root.mainloop()
+    return 0
 
 
 if __name__ == "__main__":
