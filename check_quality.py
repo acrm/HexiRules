@@ -39,36 +39,55 @@ def main() -> int:
     """Run all code quality checks."""
     print("🔍 HexiRules Code Quality Checker")
     print("Running comprehensive code quality checks...")
-    
+
     all_passed = True
-    
+
     # 1. MyPy Type Checking
     print_header("MyPy Type Checking")
     mypy_passed, mypy_output = run_command(
-        [sys.executable, "-m", "mypy", "main.py", "automaton.py", "version.py", "cli.py"],
-        "MyPy Type Checking"
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "main.py",
+            "automaton.py",
+            "version.py",
+            "cli.py",
+            "check_quality.py",
+        ],
+        "MyPy Type Checking",
     )
     print_result("MyPy", mypy_passed, mypy_output if not mypy_passed else "")
     all_passed = all_passed and mypy_passed
-    
+
     # 2. Black Code Formatting
     print_header("Black Code Formatting Check")
     black_passed, black_output = run_command(
-        [sys.executable, "-m", "black", "--check", "main.py", "automaton.py", "version.py", "cli.py"],
-        "Black Formatting"
+        [
+            sys.executable,
+            "-m",
+            "black",
+            "--check",
+            "main.py",
+            "automaton.py",
+            "version.py",
+            "cli.py",
+            "check_quality.py",
+        ],
+        "Black Formatting",
     )
     print_result("Black", black_passed, black_output if not black_passed else "")
     all_passed = all_passed and black_passed
-    
+
     # 3. Unit Tests
     print_header("Unit Tests")
     test_passed, test_output = run_command(
         [sys.executable, "-m", "unittest", "discover", "tests/", "-v"],
-        "Unit Tests"
+        "Unit Tests",
     )
     print_result("Tests", test_passed, test_output if not test_passed else "")
     all_passed = all_passed and test_passed
-    
+
     # Final Summary
     print_header("Final Summary")
     if all_passed:
