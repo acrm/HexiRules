@@ -1,0 +1,3 @@
+# HexiRules Dependencies
+# No external dependencies required - uses only Python standard library
+# Python >= 3.8 required for typing features
