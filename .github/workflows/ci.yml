@@ -34,8 +34,8 @@ jobs:
         
     - name: Run tests (headless)
       run: |
-        # Run tests in virtual display for GUI components
-        xvfb-run -a python -m unittest discover -s tests -v
+        # Run tests in virtual display using consolidated runner (avoids module import conflicts)
+        xvfb-run -a python run_tests.py --no-gui
         
     - name: Run type checking
       run: |

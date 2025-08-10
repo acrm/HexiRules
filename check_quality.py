@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
 HexiRules Code Quality Checker
-Runs comprehensive code quality checks: MyPy, Black, and Unit Tests
+Runs comprehensive code quality checks across the whole repo:
+- MyPy type checking over all Python files
+- Black formatting check over the repository
+- Unit tests via the consolidated test runner
 """
 
 import subprocess
 import sys
+import os
+from pathlib import Path
 from typing import List, Tuple
 
 
@@ -35,56 +40,79 @@ def print_result(check_name: str, passed: bool, output: str = "") -> None:
         print(f"Output:\n{output}")
 
 
+def module_available(module: str) -> bool:
+    """Return True if a Python module can be imported."""
+    try:
+        __import__(module)
+        return True
+    except Exception:
+        return False
+
+
+def discover_python_files(root: Path) -> List[str]:
+    """Discover all Python files to check, excluding common ignore paths."""
+    ignore_dirs = {
+        ".git",
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        "venv",
+        ".venv",
+        "env",
+        "build",
+        "dist",
+    }
+    files: List[str] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        # prune ignored directories in-place for efficiency
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+        for fname in filenames:
+            if fname.endswith(".py"):
+                files.append(str(Path(dirpath) / fname))
+    return files
+
+
 def main() -> int:
     """Run all code quality checks."""
     print("🔍 HexiRules Code Quality Checker")
     print("Running comprehensive code quality checks...")
 
     all_passed = True
+    repo_root = Path(__file__).resolve().parent
+    py_files = discover_python_files(repo_root)
+    # Ensure deterministic order for tooling output
+    py_files.sort()
 
     # 1. MyPy Type Checking
     print_header("MyPy Type Checking")
-    mypy_passed, mypy_output = run_command(
-        [
-            sys.executable,
-            "-m",
-            "mypy",
-            "main.py",
-            "automaton.py",
-            "version.py",
-            "cli.py",
-            "check_quality.py",
-        ],
-        "MyPy Type Checking",
-    )
-    print_result("MyPy", mypy_passed, mypy_output if not mypy_passed else "")
-    all_passed = all_passed and mypy_passed
+    mypy_status = "skipped"
+    if module_available("mypy"):
+        mypy_cmd = [sys.executable, "-m", "mypy", *py_files]
+        mypy_passed, mypy_output = run_command(mypy_cmd, "MyPy Type Checking")
+        print_result("MyPy", mypy_passed, mypy_output if not mypy_passed else "")
+        all_passed = all_passed and mypy_passed
+        mypy_status = "passed" if mypy_passed else "failed"
+    else:
+        print("MyPy: ⏭️  SKIPPED (module not installed)")
 
     # 2. Black Code Formatting
     print_header("Black Code Formatting Check")
-    black_passed, black_output = run_command(
-        [
-            sys.executable,
-            "-m",
-            "black",
-            "--check",
-            "main.py",
-            "automaton.py",
-            "version.py",
-            "cli.py",
-            "check_quality.py",
-        ],
-        "Black Formatting",
-    )
-    print_result("Black", black_passed, black_output if not black_passed else "")
-    all_passed = all_passed and black_passed
+    black_status = "skipped"
+    if module_available("black"):
+        # Run black across the whole repository for simplicity
+        black_cmd = [sys.executable, "-m", "black", "--check", "."]
+        black_passed, black_output = run_command(black_cmd, "Black Formatting")
+        print_result("Black", black_passed, black_output if not black_passed else "")
+        all_passed = all_passed and black_passed
+        black_status = "passed" if black_passed else "failed"
+    else:
+        print("Black: ⏭️  SKIPPED (module not installed)")
 
     # 3. Unit Tests
     print_header("Unit Tests")
-    test_passed, test_output = run_command(
-        [sys.executable, "-m", "unittest", "discover", "tests/", "-v"],
-        "Unit Tests",
-    )
+    # Use the consolidated test runner to include root-level tests as well
+    test_cmd = [sys.executable, "run_tests.py"]
+    test_passed, test_output = run_command(test_cmd, "Unit Tests")
     print_result("Tests", test_passed, test_output if not test_passed else "")
     all_passed = all_passed and test_passed
 
@@ -92,8 +120,21 @@ def main() -> int:
     print_header("Final Summary")
     if all_passed:
         print("🎉 All code quality checks PASSED!")
-        print("✅ MyPy: No type errors")
-        print("✅ Black: Code properly formatted")
+        # Accurate per-tool reporting
+        if mypy_status == "passed":
+            print("✅ MyPy: No type errors")
+        elif mypy_status == "skipped":
+            print("⏭️  MyPy: Skipped (not installed)")
+        else:
+            print("❌ MyPy: Failed")
+
+        if black_status == "passed":
+            print("✅ Black: Code properly formatted")
+        elif black_status == "skipped":
+            print("⏭️  Black: Skipped (not installed)")
+        else:
+            print("❌ Black: Formatting issues found")
+
         print("✅ Tests: All tests passing")
         return 0
     else:

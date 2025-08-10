@@ -1,0 +1,26 @@
+Code style rules:
+- Python 3.8+ only; no external dependencies
+- Minimal diffs; do not reformat or rename unrelated code
+- Type hints on public functions/classes; explicit imports (no wildcards)
+- Black-compatible formatting; MyPy-friendly typing
+- Naming: snake_case (functions/variables), PascalCase (classes), UPPER_SNAKE (constants)
+- Functions small; extract helpers when >40 lines; avoid global state
+- Pure logic in engines; side effects only in GUI
+- No prints in libraries; use existing logging/GUI log methods
+- Cross-platform paths; prefer pathlib; Windows-friendly
+- Preserve GUI layout contracts (stacked sections, responsive canvas) and event bindings
+- Keep JSON save format stable (keys unchanged)
+
+Message style rules:
+- Commit/PR titles: imperative, <=72 chars; wrap bodies at 72
+- Logs/status: short, factual, no emojis; consistent punctuation
+- Errors: actionable, include offending value/context
+- UI labels: Title Case; other user text: sentence case; no fluff
+
+Folder/structure rules:
+- GUI in gui.py; Conway engine in automaton.py; HexiDirect in hex_rules.py
+- Tests under tests/ named test_*.py
+- Docs at repo root; *.md for docs; *.txt for strict rule lists
+- Scripts/tools at repo root; avoid new top-level folders without need
+- Filenames lowercase_with_underscores.py
+- Chat responses (if any): short, impersonal, no emojis, no fluff

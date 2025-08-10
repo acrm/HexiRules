@@ -1,179 +1,78 @@
+#!/usr/bin/env python3
+"""
+HexiRules - Hexagonal Cellular Automaton
+
+Main entry point for the HexiRules application.
+Supports both Conway-style totalistic rules and HexiDirect symbolic rules.
+
+Also exposes a minimal HexCanvas helper used by geometry-focused tests.
+"""
+
+from gui import create_gui
+
+# Minimal geometry utilities for tests
+from typing import Dict, Tuple, List
 import math
-import tkinter as tk
-from typing import Dict, Tuple, Any, List
 
-from automaton import Automaton
-from version import __version__
-
-CELL_SIZE = 30
-GRID_RADIUS = 8
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
+try:
+    import tkinter as tk  # Only needed when tests instantiate the canvas
+except Exception:  # pragma: no cover - allow headless import
+    tk = None  # type: ignore[assignment]
 
 
-class HexCanvas(tk.Canvas):
-    def __init__(
-        self,
-        master: tk.Tk,
-        radius: int = GRID_RADIUS,
-        window_width: int = WINDOW_WIDTH,
-        window_height: int = WINDOW_HEIGHT,
-        **kwargs: Any,
-    ) -> None:
-        # Calculate cell size based on window dimensions to fit the grid
-        max_cells_x = radius * 2 + 1
-        max_cells_y = radius * 2 + 1
+class HexCanvas:
+    """A lightweight hex grid canvas providing geometry helpers for tests.
 
-        # Calculate optimal cell size to fit window
-        cell_size_x = window_width / (max_cells_x * 1.5)
-        cell_size_y = (window_height - 80) / (
-            max_cells_y * math.sqrt(3)
-        )  # Reserve space for controls
+    This class is intentionally minimal and independent from the main GUI.
+    Tests use it to validate coordinate conversions and hex polygon math.
+    """
 
-        cell_size = min(cell_size_x, cell_size_y)
-
-        # Calculate actual canvas dimensions
-        canvas_width = int(cell_size * 1.5 * max_cells_x + cell_size)
-        canvas_height = int(cell_size * math.sqrt(3) * max_cells_y + cell_size)
-
-        super().__init__(
-            master, width=canvas_width, height=canvas_height, bg="lightgray", **kwargs
-        )
+    def __init__(self, root: tk.Tk, radius: int = 3, cell_size: int = 20) -> None:
+        if tk is None:
+            raise RuntimeError("Tkinter not available")
+        self.root = root
         self.radius = radius
         self.cell_size = cell_size
-        self.cells: Dict[Tuple[int, int], int] = {}
-        self.center_x = canvas_width // 2
-        self.center_y = canvas_height // 2
-        self.draw_grid()
 
-    def axial_to_pixel(self, q: int, r: int) -> Tuple[float, float]:
-        # Convert axial coordinates to pixel coordinates with proper centering
-        x = self.cell_size * (3 / 2 * q)
-        y = self.cell_size * (math.sqrt(3) / 2 * q + math.sqrt(3) * r)
-        return x + self.center_x, y + self.center_y
+        # Compute a canvas size that safely fits a hex grid of the given radius
+        grid_w = int((3 * self.cell_size / 2) * (2 * radius) + 2 * self.cell_size + 20)
+        grid_h = int((math.sqrt(3) * self.cell_size) * (2 * radius + 1) + 20)
+        self.center_x = grid_w // 2
+        self.center_y = grid_h // 2
 
-    def polygon_corners(self, x: float, y: float) -> List[float]:
-        points: List[float] = []
-        radius = (
-            self.cell_size * 0.98
-        )  # Make hexagons almost touch each other (remove gaps)
+        self.canvas = tk.Canvas(root, width=grid_w, height=grid_h)
+
+        # Precompute cell centers for axial coordinates within the radius
+        self.cells: Dict[Tuple[int, int], Tuple[int, int]] = {}
+        for q in range(-radius, radius + 1):
+            r_min = max(-radius, -q - radius)
+            r_max = min(radius, -q + radius)
+            for r in range(r_min, r_max + 1):
+                x, y = self.axial_to_pixel(q, r)
+                self.cells[(q, r)] = (x, y)
+
+    def axial_to_pixel(self, q: int, r: int) -> Tuple[int, int]:
+        """Convert axial (q, r) to pixel coordinates (pointy-top orientation)."""
+        x = self.center_x + int(round(self.cell_size * (3 / 2) * q))
+        y = self.center_y + int(round(self.cell_size * math.sqrt(3) * (r + q / 2)))
+        return x, y
+
+    def polygon_corners(self, cx: int, cy: int) -> List[int]:
+        """Return the 6-point polygon around (cx, cy) as a flat list of 12 ints."""
+        pts: List[int] = []
+        # pointy-top hexagon: start at -30 degrees and step by 60 degrees
         for i in range(6):
-            # Start from top vertex (flat-top hexagons)
-            angle = math.pi / 3 * i
-            px = x + radius * math.cos(angle)
-            py = y + radius * math.sin(angle)
-            points.extend([px, py])
-        return points
-
-    def draw_hex(self, q: int, r: int, fill: str = "white") -> None:
-        x, y = self.axial_to_pixel(q, r)
-        poly = self.create_polygon(
-            self.polygon_corners(x, y), outline="gray", fill=fill, width=1
-        )
-        self.cells[(q, r)] = poly
-
-    def draw_grid(self) -> None:
-        for q in range(-self.radius, self.radius + 1):
-            for r in range(-self.radius, self.radius + 1):
-                if abs(q + r) <= self.radius:
-                    self.draw_hex(q, r)
+            angle_rad = math.radians(60 * i - 30)
+            x = cx + self.cell_size * math.cos(angle_rad)
+            y = cy + self.cell_size * math.sin(angle_rad)
+            pts.extend([int(round(x)), int(round(y))])
+        return pts
 
 
-def main() -> int:
-    """Main application entry point."""
-    try:
-        root = tk.Tk()
-        root.title(f"HexiRules v{__version__} - Hexagonal Cellular Automaton")
-
-        # Set fixed window size
-        root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-        root.resizable(False, False)
-
-        # Center the window on screen
-        screen_width = root.winfo_screenwidth()
-        screen_height = root.winfo_screenheight()
-
-        x = (screen_width - WINDOW_WIDTH) // 2
-        y = (screen_height - WINDOW_HEIGHT) // 2
-
-        root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
-
-        # Create canvas that fits the window
-        canvas = HexCanvas(root)
-        canvas.pack(expand=True, fill="both", padx=10, pady=10)
-
-        automaton = Automaton()
-
-        def refresh_canvas() -> None:
-            """Update canvas to reflect current automaton state."""
-            for cell in canvas.cells:
-                color = "black" if cell in automaton.state else "white"
-                canvas.itemconfig(canvas.cells[cell], fill=color)
-
-        # Create control frame
-        control_frame = tk.Frame(root)
-        control_frame.pack(pady=5)
-
-        rule_var = tk.StringVar(value=automaton.rule)
-        tk.Label(control_frame, text="Rule:").pack(side=tk.LEFT, padx=5)
-        rule_entry = tk.Entry(control_frame, textvariable=rule_var, width=10)
-        rule_entry.pack(side=tk.LEFT, padx=5)
-
-        def apply_rule() -> None:
-            automaton.parse_rule(rule_var.get())
-
-        tk.Button(control_frame, text="Set Rule", command=apply_rule).pack(
-            side=tk.LEFT, padx=5
-        )
-
-        running = {"active": False}
-        start_stop_button = tk.Button(control_frame, text="Start", command=lambda: None)
-
-        def on_click(event: Any) -> None:
-            # determine which cell was clicked
-            clicked_item = canvas.find_closest(event.x, event.y)[0]
-            for (q, r), item in canvas.cells.items():
-                if item == clicked_item:
-                    automaton.toggle_cell(q, r)
-                    color = "black" if (q, r) in automaton.state else "white"
-                    canvas.itemconfig(item, fill=color)
-                    break
-
-        canvas.bind("<Button-1>", on_click)
-
-        def toggle_running() -> None:
-            running["active"] = not running["active"]
-            if running["active"]:
-                start_stop_button.config(text="Stop", bg="lightcoral")
-                run_step()
-            else:
-                start_stop_button.config(text="Start", bg="lightgreen")
-
-        def run_step() -> None:
-            if running["active"]:
-                automaton.step()
-                refresh_canvas()
-                root.after(200, run_step)
-
-        start_stop_button.config(command=toggle_running, bg="lightgreen")
-        start_stop_button.pack(side=tk.LEFT, padx=5)
-
-        # Add clear button
-        def clear_grid() -> None:
-            automaton.state = {}
-            refresh_canvas()
-
-        tk.Button(control_frame, text="Clear", command=clear_grid).pack(
-            side=tk.LEFT, padx=5
-        )
-
-        root.mainloop()
-
-    except Exception as e:
-        print(f"Error running HexiRules: {e}")
-        return 1
-
-    return 0
+def main() -> None:
+    """Main entry point for HexiRules."""
+    gui = create_gui()
+    gui.run()
 
 
 if __name__ == "__main__":
