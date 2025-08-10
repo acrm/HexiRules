@@ -14,7 +14,9 @@ from typing import Iterator, Callable
 sys.path.insert(0, os.path.dirname(__file__))
 
 
-def _load_root_tests(loader: unittest.TestLoader, suite: unittest.TestSuite, tests_dir: str) -> int:
+def _load_root_tests(
+    loader: unittest.TestLoader, suite: unittest.TestSuite, tests_dir: str
+) -> int:
     """Load root-level tests if tests/ isn't a package."""
     total_loaded = 0
     has_tests_pkg = os.path.isdir(tests_dir) and os.path.isfile(
@@ -34,7 +36,13 @@ def _load_root_tests(loader: unittest.TestLoader, suite: unittest.TestSuite, tes
                 continue
     return total_loaded
 
-def _load_package_tests(loader: unittest.TestLoader, suite: unittest.TestSuite, tests_dir: str, include_gui: bool) -> int:
+
+def _load_package_tests(
+    loader: unittest.TestLoader,
+    suite: unittest.TestSuite,
+    tests_dir: str,
+    include_gui: bool,
+) -> int:
     """Discover and load all tests from the tests/ directory."""
     total_loaded = 0
     if os.path.isdir(tests_dir):
@@ -52,6 +60,7 @@ def _load_package_tests(loader: unittest.TestLoader, suite: unittest.TestSuite, 
                     yield item
 
         if not include_gui or os.getenv("HEXIRULES_NO_GUI") == "1":
+
             def predicate(tc: unittest.TestCase) -> bool:
                 mod = getattr(tc.__class__, "__module__", "")
                 return not mod.endswith(".test_canvas")
@@ -66,6 +75,7 @@ def _load_package_tests(loader: unittest.TestLoader, suite: unittest.TestSuite, 
         total_loaded += count
         print(f"Loaded {count} tests from tests/ directory")
     return total_loaded
+
 
 def run_all_tests(include_gui: bool = True) -> int:
     """Run all test suites and return process exit code."""
