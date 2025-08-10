@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-"""
-HexiRules Code Quality Checker
-Runs comprehensive code quality checks across the whole repo:
-- MyPy type checking over all Python files
-- Black formatting check over the repository
-- Unit tests via the consolidated test runner
-"""
+"""HexiRules Code Quality Checker."""
 
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
 from typing import List, Tuple
 
@@ -34,7 +28,7 @@ def print_header(title: str) -> None:
 
 def print_result(check_name: str, passed: bool, output: str = "") -> None:
     """Print the result of a check."""
-    status = "✅ PASSED" if passed else "❌ FAILED"
+    status = "PASSED" if passed else "FAILED"
     print(f"{check_name}: {status}")
     if output and not passed:
         print(f"Output:\n{output}")
@@ -74,11 +68,11 @@ def discover_python_files(root: Path) -> List[str]:
 
 def main() -> int:
     """Run all code quality checks."""
-    print("🔍 HexiRules Code Quality Checker")
+    print("HexiRules Code Quality Checker")
     print("Running comprehensive code quality checks...")
 
     all_passed = True
-    repo_root = Path(__file__).resolve().parent
+    repo_root = Path(__file__).resolve().parent.parent
     py_files = discover_python_files(repo_root)
     # Ensure deterministic order for tooling output
     py_files.sort()
@@ -93,25 +87,23 @@ def main() -> int:
         all_passed = all_passed and mypy_passed
         mypy_status = "passed" if mypy_passed else "failed"
     else:
-        print("MyPy: ⏭️  SKIPPED (module not installed)")
+        print("MyPy: SKIPPED (module not installed)")
 
     # 2. Black Code Formatting
     print_header("Black Code Formatting Check")
     black_status = "skipped"
     if module_available("black"):
-        # Run black across the whole repository for simplicity
-        black_cmd = [sys.executable, "-m", "black", "--check", "."]
+        black_cmd = [sys.executable, "-m", "black", "--check", str(repo_root)]
         black_passed, black_output = run_command(black_cmd, "Black Formatting")
         print_result("Black", black_passed, black_output if not black_passed else "")
         all_passed = all_passed and black_passed
         black_status = "passed" if black_passed else "failed"
     else:
-        print("Black: ⏭️  SKIPPED (module not installed)")
+        print("Black: SKIPPED (module not installed)")
 
     # 3. Unit Tests
     print_header("Unit Tests")
-    # Use the consolidated test runner to include root-level tests as well
-    test_cmd = [sys.executable, "run_tests.py"]
+    test_cmd = [sys.executable, str(repo_root / "tools" / "run_tests.py")]
     test_passed, test_output = run_command(test_cmd, "Unit Tests")
     print_result("Tests", test_passed, test_output if not test_passed else "")
     all_passed = all_passed and test_passed
@@ -119,28 +111,27 @@ def main() -> int:
     # Final Summary
     print_header("Final Summary")
     if all_passed:
-        print("🎉 All code quality checks PASSED!")
-        # Accurate per-tool reporting
+        print("All code quality checks passed")
         if mypy_status == "passed":
-            print("✅ MyPy: No type errors")
+            print("MyPy: No type errors")
         elif mypy_status == "skipped":
-            print("⏭️  MyPy: Skipped (not installed)")
+            print("MyPy: Skipped (not installed)")
         else:
-            print("❌ MyPy: Failed")
+            print("MyPy: Failed")
 
         if black_status == "passed":
-            print("✅ Black: Code properly formatted")
+            print("Black: Code properly formatted")
         elif black_status == "skipped":
-            print("⏭️  Black: Skipped (not installed)")
+            print("Black: Skipped (not installed)")
         else:
-            print("❌ Black: Formatting issues found")
+            print("Black: Formatting issues found")
 
-        print("✅ Tests: All tests passing")
+        print("Tests: All tests passing")
         return 0
-    else:
-        print("⚠️  Some code quality checks FAILED!")
-        print("❌ Check the output above for details")
-        return 1
+
+    print("Some code quality checks failed")
+    print("Check the output above for details")
+    return 1
 
 
 if __name__ == "__main__":

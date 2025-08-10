@@ -34,12 +34,11 @@ jobs:
         
     - name: Run tests (headless)
       run: |
-        # Run tests in virtual display using consolidated runner (avoids module import conflicts)
-        xvfb-run -a python run_tests.py --no-gui
-        
+        xvfb-run -a python tools/run_tests.py --no-gui
+
     - name: Run type checking
       run: |
-        mypy automaton.py main.py
+        mypy src/automaton.py src/main.py
         
     - name: Check code formatting
       run: |
