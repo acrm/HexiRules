@@ -14,6 +14,14 @@ import json
 import os
 from automaton import Automaton
 from hex_rules import HexAutomaton
+from app.controller import HexiController
+from ui import (
+    build_world_tab,
+    build_cells_tab,
+    build_rules_tab,
+    build_run_tab,
+    build_log_tab,
+)
 
 # Configuration
 DEFAULT_RADIUS = 8
@@ -45,16 +53,15 @@ class HexiRulesGUI:
 
         # GUI state
         self.is_hexidirect = tk.BooleanVar(value=True)
-        self.hex_items: Dict[Tuple[int, int], int] = {}
+        self.hex_items = {}
 
         # Per-canvas dynamic layout
-        self.canvas: tk.Canvas
-        self.canvas_center: Tuple[int, int] = (0, 0)
-        self.cell_size: float = 15.0
+        self.canvas = None  # will be created in create_grid_panel
+        self.canvas_center = (0, 0)
+        self.cell_size = 15.0
 
-        # Worlds management: name -> dict
-        self.worlds: Dict[str, Dict[str, Any]] = {}
-        self.current_world: Optional[str] = None
+        # Worlds management delegated to controller
+        self.controller = HexiController()
 
         self.create_widgets()
         self._init_default_world()
@@ -73,35 +80,17 @@ class HexiRulesGUI:
     def _create_world(
         self, name: str, radius: int, is_hex: bool, rules_text: str
     ) -> None:
-        world: Dict[str, Any] = {
-            "name": name,
-            "radius": radius,
-            "is_hex": is_hex,
-            "rules_text": rules_text,
-            "conway": Automaton(
-                radius=radius, rule=rules_text if not is_hex else "B3/S23"
-            ),
-            "hex": HexAutomaton(radius=radius),
-        }
-        # Apply hex rules if needed
-        if is_hex and rules_text:
-            rules = [
-                r.strip()
-                for r in rules_text.replace(";", "\n").split("\n")
-                if r.strip()
-            ]
-            cast(HexAutomaton, world["hex"]).set_rules(rules)
-        self.worlds[name] = world
+        # Delegate world creation to controller
+        self.controller.create_world(name, radius, is_hex, rules_text)
         # Update world list UI
         if hasattr(self, "world_list"):
             if name not in self.world_list.get(0, tk.END):
                 self.world_list.insert(tk.END, name)
 
     def _select_world(self, name: str) -> None:
-        if name not in self.worlds:
+        if name not in self.controller.worlds:
             return
-        self.current_world = name
-        world = self.worlds[name]
+        world = self.controller.select_world(name)
         # Sync UI
         self.is_hexidirect.set(bool(world.get("is_hex", False)))
         self.rule_text.delete("1.0", tk.END)
@@ -114,7 +103,7 @@ class HexiRulesGUI:
         # Select in listbox
         if hasattr(self, "world_list"):
             try:
-                idx = list(self.worlds).index(name)
+                idx = list(self.controller.worlds).index(name)
                 self.world_list.selection_clear(0, tk.END)
                 self.world_list.selection_set(idx)
                 self.world_list.see(idx)
@@ -123,11 +112,13 @@ class HexiRulesGUI:
         self.update_display()
 
     def _get_current_world(self) -> Dict[str, Any]:
-        if not self.current_world:
-            # Shouldn't happen after init, but guard
+        # Ask controller for current world
+        try:
+            return self.controller.get_current_world()
+        except Exception:
+            # Shouldn't happen after init, but guard by re-initializing
             self._init_default_world()
-        assert self.current_world is not None
-        return self.worlds[self.current_world]
+            return self.controller.get_current_world()
 
     # -------- UI construction --------
     def create_widgets(self) -> None:
@@ -159,147 +150,40 @@ class HexiRulesGUI:
         # Worlds section
         world_section = tk.LabelFrame(controls_frame, text="Worlds", bg="lightblue")
         world_section.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_world_tab(world_section)
+        self.world_list, self.world_info = build_world_tab(
+            world_section,
+            self.on_world_select,
+            self.new_world,
+            self.load_world,
+            self.save_world,
+            self.delete_world,
+        )
 
         # Cells section
         cells_section = tk.LabelFrame(controls_frame, text="Cells", bg="lightblue")
         cells_section.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_cells_tab(cells_section)
+        build_cells_tab(cells_section, self.clear, self.randomize)
 
         # Rules section
         rules_section = tk.LabelFrame(controls_frame, text="Rules", bg="lightblue")
         rules_section.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_rules_tab(rules_section)
+        self.rule_label, self.rule_text = build_rules_tab(
+            rules_section, self.is_hexidirect, self.on_mode_change
+        )
+        # Default rule
+        self.rule_text.insert("1.0", "t[-a] => t%\n_[t.] => a\nt%[a] => t")
 
         # Run section
         run_section = tk.LabelFrame(controls_frame, text="Run", bg="lightblue")
         run_section.grid(row=3, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_run_tab(run_section)
+        self.status_label = build_run_tab(run_section, self.step)
 
         # Log section
         log_section = tk.LabelFrame(controls_frame, text="Log", bg="lightblue")
         log_section.grid(row=4, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_log_tab(log_section)
+        self.log_text = build_log_tab(log_section, self.clear_log)
 
-    def _build_world_tab(self, frame: tk.Misc) -> None:
-        # World list
-        list_frame = tk.Frame(frame)
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
-        self.world_list = tk.Listbox(list_frame, height=8)
-        self.world_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        sb = tk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.world_list.yview)
-        sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self.world_list.configure(yscrollcommand=sb.set)
-        self.world_list.bind("<<ListboxSelect>>", self.on_world_select)
-
-        # Actions
-        btns = tk.Frame(frame)
-        btns.pack(fill=tk.X, padx=8, pady=6)
-        tk.Button(btns, text="New", command=self.new_world, bg="lightgreen").pack(
-            side=tk.LEFT, padx=3
-        )
-        tk.Button(btns, text="Load", command=self.load_world).pack(side=tk.LEFT, padx=3)
-        tk.Button(btns, text="Save", command=self.save_world).pack(side=tk.LEFT, padx=3)
-        tk.Button(btns, text="Delete", command=self.delete_world, bg="lightcoral").pack(
-            side=tk.RIGHT, padx=3
-        )
-
-        # Info
-        self.world_info = tk.Label(
-            frame,
-            text="Create, select, load/save worlds. Radius can vary per world.",
-            anchor=tk.W,
-            justify=tk.LEFT,
-            wraplength=CONTROLS_WIDTH - 20,
-        )
-        self.world_info.pack(fill=tk.X, padx=8, pady=4)
-
-    def _build_cells_tab(self, frame: tk.Misc) -> None:
-        info = tk.Label(
-            frame,
-            text=(
-                "Click on the grid to edit cells.\n"
-                "HexiDirect: Left=cycle state, Right=cycle direction, Middle=clear.\n"
-                "Conway: Left=toggle."
-            ),
-            justify=tk.LEFT,
-            wraplength=CONTROLS_WIDTH - 20,
-        )
-        info.pack(fill=tk.X, padx=8, pady=6)
-
-        btns = tk.Frame(frame)
-        btns.pack(fill=tk.X, padx=8, pady=6)
-        tk.Button(btns, text="Clear", command=self.clear, bg="lightcoral").pack(
-            side=tk.LEFT, padx=3
-        )
-        tk.Button(btns, text="Random", command=self.randomize, bg="lightyellow").pack(
-            side=tk.LEFT, padx=3
-        )
-
-    def _build_rules_tab(self, frame: tk.Misc) -> None:
-        # Compact one-line mode switcher
-        mode_frame = tk.Frame(frame)
-        mode_frame.pack(fill=tk.X, padx=8, pady=4)
-        tk.Label(mode_frame, text="Mode:").pack(side=tk.LEFT)
-        tk.Radiobutton(
-            mode_frame,
-            text="Conway",
-            variable=self.is_hexidirect,
-            value=False,
-            command=self.on_mode_change,
-        ).pack(side=tk.LEFT, padx=(6, 0))
-        tk.Radiobutton(
-            mode_frame,
-            text="HexiDirect",
-            variable=self.is_hexidirect,
-            value=True,
-            command=self.on_mode_change,
-        ).pack(side=tk.LEFT, padx=(6, 0))
-
-        rules_frame = tk.LabelFrame(frame, text="Rules", padx=8, pady=5)
-        rules_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
-
-        self.rule_label = tk.Label(
-            rules_frame, text="Enter HexiDirect rules (e.g., a[b] => c):"
-        )
-        self.rule_label.pack(anchor=tk.W)
-
-        text_frame = tk.Frame(rules_frame)
-        text_frame.pack(fill=tk.BOTH, expand=True, pady=2)
-
-        self.rule_text = tk.Text(text_frame, height=12, font=("Consolas", 10))
-        rule_scrollbar = tk.Scrollbar(
-            text_frame, orient=tk.VERTICAL, command=self.rule_text.yview
-        )
-        self.rule_text.configure(yscrollcommand=rule_scrollbar.set)
-        self.rule_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        rule_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Default rule
-        self.rule_text.insert("1.0", "t[-a] => t%\n_[t.] => a\nt%[a] => t")
-
-    def _build_run_tab(self, frame: tk.Misc) -> None:
-        btns = tk.Frame(frame)
-        btns.pack(fill=tk.X, padx=8, pady=6)
-        tk.Button(btns, text="Step", command=self.step, bg="lightgreen").pack(
-            side=tk.LEFT, padx=3
-        )
-        self.status_label = tk.Label(frame, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
-        self.status_label.pack(fill=tk.X, padx=8, pady=6)
-
-    def _build_log_tab(self, frame: tk.Misc) -> None:
-        log_text_frame = tk.Frame(frame)
-        log_text_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
-        self.log_text = tk.Text(
-            log_text_frame, height=16, font=("Consolas", 9), wrap=tk.WORD
-        )
-        log_scrollbar = tk.Scrollbar(
-            log_text_frame, orient=tk.VERTICAL, command=self.log_text.yview
-        )
-        self.log_text.configure(yscrollcommand=log_scrollbar.set)
-        self.log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        log_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        tk.Button(frame, text="Clear Log", command=self.clear_log).pack(pady=4)
+    # removed per-module builders; now provided by ui.panels
 
     def create_grid_panel(self, parent) -> None:
         """Create the grid panel on the right side."""
@@ -484,30 +368,21 @@ class HexiRulesGUI:
             return
         name = self.world_list.get(sel[0])
         if messagebox.askyesno("Delete World", f"Delete '{name}'?", parent=self.root):
-            del self.worlds[name]
+            try:
+                del self.controller.worlds[name]
+            except KeyError:
+                pass
             self.world_list.delete(sel[0])
-            if self.worlds:
-                self._select_world(next(iter(self.worlds.keys())))
+            if self.controller.worlds:
+                self._select_world(next(iter(self.controller.worlds.keys())))
             else:
                 self._init_default_world()
 
     def save_world(self) -> None:
         world = self._get_current_world()
-        # Sync rules and mode from UI
-        world["is_hex"] = bool(self.is_hexidirect.get())
-        world["rules_text"] = self.rule_text.get("1.0", tk.END).strip()
-        data: Dict[str, Any] = {
-            "name": world["name"],
-            "radius": world["radius"],
-            "is_hex": world["is_hex"],
-            "rules_text": world["rules_text"],
-            "hex_cells": [
-                {"q": q, "r": r, "s": cell.state, "d": cell.direction}
-                for (q, r), cell in cast(HexAutomaton, world["hex"]).grid.items()
-                if cell.state != "_"
-            ],
-            "conway_cells": [list(pos) for pos in world["conway"].state.keys()],
-        }
+        # Sync rules and mode from UI and delegate persistence
+        is_hexidirect = bool(self.is_hexidirect.get())
+        rules_text = self.rule_text.get("1.0", tk.END).strip()
         path = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("HexiRules World", "*.json")],
@@ -516,8 +391,7 @@ class HexiRulesGUI:
         if not path:
             return
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+            self.controller.save_world_to_file(path, is_hexidirect, rules_text)
             self.log_message(f"Saved world to {os.path.basename(path)}")
         except Exception as e:
             self.log_message(f"Save failed: {e}")
@@ -529,27 +403,10 @@ class HexiRulesGUI:
         if not path:
             return
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            name = data.get("name") or os.path.splitext(os.path.basename(path))[0]
-            radius = int(data.get("radius", DEFAULT_RADIUS))
-            is_hex = bool(data.get("is_hex", False))
-            rules_text = str(data.get("rules_text", "B3/S23"))
-            self._create_world(name, radius, is_hex, rules_text)
-            world = self.worlds[name]
-            # Populate cells
-            cast(HexAutomaton, world["hex"]).clear()
-            for item in data.get("hex_cells", []):
-                cast(HexAutomaton, world["hex"]).set_cell(
-                    int(item["q"]), int(item["r"]), str(item["s"]), item.get("d")
-                )
-            world["conway"].clear()
-            for pos in data.get("conway_cells", []):
-                try:
-                    q, r = int(pos[0]), int(pos[1])
-                    world["conway"].state[(q, r)] = 1
-                except Exception:
-                    continue
+            name = self.controller.load_world_from_file(path)
+            # Ensure it's listed and selected
+            if name not in self.world_list.get(0, tk.END):
+                self.world_list.insert(tk.END, name)
             self._select_world(name)
             self.log_message(f"Loaded world from {os.path.basename(path)}")
         except Exception as e:
@@ -635,49 +492,9 @@ class HexiRulesGUI:
         rules_text = self.rule_text.get("1.0", tk.END).strip()
         if not rules_text:
             return
-        self.log_message("=" * 50)
-        self.log_message("STEP: Starting new simulation step")
-
-        world = self._get_current_world()
-        if world.get("is_hex", False):
-            rules: List[str] = []
-            for line in rules_text.split("\n"):
-                line_rules = [r.strip() for r in line.split(",") if r.strip()]
-                rules.extend(line_rules)
-            if rules:
-                self.log_message(f"Rules: {rules}")
-                world["hex"].set_rules(rules)
-                self.log_message("Expanded rules:")
-                for i, rule in enumerate(world["hex"].rules, 1):
-                    self.log_message(f"  {i}: {rule.rule_str}")
-                active_cells = [
-                    f"({q},{r}):{cell}"
-                    for (q, r), cell in world["hex"].grid.items()
-                    if cell.state != "_"
-                ]
-                self.log_message(f"Active cells before step: {len(active_cells)}")
-                for cell_info in active_cells[:10]:
-                    self.log_message(f"  {cell_info}")
-                if len(active_cells) > 10:
-                    self.log_message(f"  ... and {len(active_cells) - 10} more")
-                self.log_rule_applications()
-                world["hex"].step()
-                new_active = [
-                    f"({q},{r}):{cell}"
-                    for (q, r), cell in world["hex"].grid.items()
-                    if cell.state != "_"
-                ]
-                self.log_message(f"Active cells after step: {len(new_active)}")
-                for cell_info in new_active[:10]:
-                    self.log_message(f"  {cell_info}")
-                if len(new_active) > 10:
-                    self.log_message(f"  ... and {len(new_active) - 10} more")
-        else:
-            self.log_message(f"Conway rule: {rules_text}")
-            world["conway"].set_rule(rules_text)
-            world["conway"].step()
-
-        self.log_message("STEP: Completed")
+        logs = self.controller.step(rules_text)
+        for line in logs:
+            self.log_message(line)
         self.update_display()
 
     def log_rule_applications(self) -> None:
@@ -709,30 +526,12 @@ class HexiRulesGUI:
         )
 
     def clear(self) -> None:
-        world = self._get_current_world()
-        if world.get("is_hex", False):
-            world["hex"].clear()
-        else:
-            world["conway"].clear()
+        self.controller.clear()
         self.update_display()
 
     def randomize(self) -> None:
-        import random
-
-        world = self._get_current_world()
-        R = int(world.get("radius", DEFAULT_RADIUS))
-        if world.get("is_hex", False):
-            for q in range(-R // 2, R // 2 + 1):
-                for r in range(-R // 2, R // 2 + 1):
-                    if abs(q + r) <= R // 2 and random.random() < 0.3:
-                        state = random.choice(SYMBOLIC_STATES[1:4])
-                        direction = random.choice([None, 1, 2, 3, 4, 5, 6])
-                        world["hex"].set_cell(q, r, state, direction)
-        else:
-            for q in range(-R // 2, R // 2 + 1):
-                for r in range(-R // 2, R // 2 + 1):
-                    if abs(q + r) <= R // 2 and random.random() < 0.3:
-                        world["conway"].set_cell_state(q, r, "1")
+        # Use controller to randomize states
+        self.controller.randomize(SYMBOLIC_STATES, p=0.3)
         self.update_display()
 
     def run(self) -> None:
