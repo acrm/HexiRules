@@ -62,64 +62,60 @@ class TestHexRules(unittest.TestCase):
     def test_simple_rule_application(self) -> None:
         """Test application of simple unconditional rules."""
         self.automaton.set_rules(["a => b"])
-        
+
         # Set up initial state
         self.automaton.set_cell(0, 0, "a")
         self.assertEqual(self.automaton.get_cell(0, 0).state, "a")
-        
+
         # Apply one step
         self.automaton.step()
-        
+
         # Check result
         self.assertEqual(self.automaton.get_cell(0, 0).state, "b")
 
     def test_conditional_rule_application(self) -> None:
         """Test application of conditional rules."""
         self.automaton.set_rules(["a[x] => b"])
-        
+
         # Set up initial state - 'a' cell with 'x' neighbor
         self.automaton.set_cell(0, 0, "a")
         self.automaton.set_cell(1, 0, "x")  # Neighbor in direction 1
-        
+
         # Apply one step
         self.automaton.step()
-        
+
         # Check result - should change to 'b' because neighbor exists
         self.assertEqual(self.automaton.get_cell(0, 0).state, "b")
 
     def test_conditional_rule_no_match(self) -> None:
         """Test conditional rule when condition is not met."""
         self.automaton.set_rules(["a[x] => b"])
-        
+
         # Set up initial state - 'a' cell without 'x' neighbor
         self.automaton.set_cell(0, 0, "a")
         self.automaton.set_cell(1, 0, "y")  # Different neighbor
-        
+
         # Apply one step
         self.automaton.step()
-        
+
         # Check result - should remain 'a' because condition not met
         self.assertEqual(self.automaton.get_cell(0, 0).state, "a")
 
     def test_multiple_rules(self) -> None:
         """Test system with multiple rules."""
-        rules = [
-            "a => b",
-            "b => c",
-            "c => a"
-        ]
+        rules = ["a => b", "b => c", "c => a"]
         self.automaton.set_rules(rules)
-        
+
         # Set up initial state
         self.automaton.set_cell(0, 0, "a")
-        
+
         # Apply three steps to cycle through states
         self.automaton.step()
         self.assertEqual(self.automaton.get_cell(0, 0).state, "b")
-        
+
         self.automaton.step()
         self.assertEqual(self.automaton.get_cell(0, 0).state, "c")
-        
+
         self.automaton.step()
         self.assertEqual(self.automaton.get_cell(0, 0).state, "a")
 
@@ -128,7 +124,7 @@ class TestHexRules(unittest.TestCase):
         # This tests that the expansion method exists and can handle basic rules
         rules = self.automaton._expand_macros("a => b")
         self.assertEqual(rules, ["a => b"])
-        
+
         # Test that it doesn't crash on complex rules
         complex_rules = self.automaton._expand_macros("a[x] => b")
         self.assertIsInstance(complex_rules, list)

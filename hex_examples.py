@@ -40,13 +40,13 @@ GUI Methods:
 1. Run the unified GUI: python main.py
    - Toggle between "Conway/Totalistic Rules" and "HexiDirect Symbolic Rules"
    - Conway mode: Click to toggle cells
-   - HexiDirect mode: 
+   - HexiDirect mode:
      * Left click: cycle through states (_, a, b, c, x, t, y, z)
-     * Right click: cycle directions (1→2→3→4→5→6→None) 
+     * Right click: cycle directions (1→2→3→4→5→6→None)
      * Middle click: clear cell
 
 Programmatic Methods:
-```python
+Example (programmatic usage):
 from hex_rules import HexAutomaton
 
 # Create automaton
@@ -64,49 +64,33 @@ automaton.set_cell(1, 1, "t", 3)   # State 't' pointing direction 3
 # Set rules and run
 automaton.set_rules(["a[b] => c", "t1 => t2"])
 automaton.step()  # Advance one generation
-```
 """
 
 # Example rule sets for testing
 EXAMPLE_RULES = {
-    "Simple Cycle": [
-        "a => b",
-        "b => c", 
-        "c => a"
-    ],
-    
-    "Conditional Growth": [
-        "a[b] => c",
-        "c => b"
-    ],
-    
+    "Simple Cycle": ["a => b", "b => c", "c => a"],
+    "Conditional Growth": ["a[b] => c", "c => b"],
     "Directional Movement": [
         "t1 => t2",
         "t2 => t3",
         "t3 => t4",
-        "t4 => t5", 
+        "t4 => t5",
         "t5 => t6",
-        "t6 => t1"
+        "t6 => t1",
     ],
-    
-    "Complex Interaction": [
-        "a[x] => b",
-        "b => y",
-        "x => a",
-        "y => x"
-    ]
+    "Complex Interaction": ["a[x] => b", "b => y", "x => a", "y => x"],
 }
 
 if __name__ == "__main__":
     print(__doc__)
-    
+
     print("\nExample Rule Sets:")
     print("==================")
-    
+
     for name, rules in EXAMPLE_RULES.items():
         print(f"\n{name}:")
         for rule in rules:
             print(f"  {rule}")
-            
+
     print(f"\nTo test these rules, copy any rule set into the GUI rule field.")
     print("Multiple rules can be separated by commas or entered one at a time.")

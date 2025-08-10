@@ -5,24 +5,24 @@ Implements the custom rule notation for hexagonal cellular automata
 
 import random
 import re
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple
 
 
 class HexCell:
     """Represents a cell with state and optional direction."""
-    
+
     def __init__(self, state: str = "_", direction: Optional[int] = None):
         self.state = state
         self.direction = direction
-    
+
     def __str__(self) -> str:
         if self.direction is None:
             return self.state
         return f"{self.state}{self.direction}"
-    
+
     def __repr__(self) -> str:
         return f"HexCell({self.state!r}, {self.direction!r})"
-    
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, HexCell):
             return False
@@ -31,11 +31,13 @@ class HexCell:
 
 class HexRule:
     """Represents a single hexagonal rule: source => target."""
-    
+
     def __init__(self, rule_str: str):
         self.rule_str = rule_str
         self.source_state: str = ""
+        # Source direction can be a specific int, with a separate flag for random direction.
         self.source_direction: Optional[int] = None
+        self.source_random_direction: bool = False
         self.target_state: str = ""
         self.target_direction: Optional[int] = None
         self.target_rotation: Optional[int] = None
@@ -46,43 +48,43 @@ class HexRule:
         self.condition_pointing: bool = False
         self.condition_random_dir: bool = False
         self.parse_rule(rule_str)
-    
+
     def parse_rule(self, rule_str: str) -> None:
         """Parse a rule string like 'a[1x] => b' or 'x% => y%5'."""
         try:
             source_part, target_part = rule_str.split("=>")
             source_part = source_part.strip()
             target_part = target_part.strip()
-            
+
             # Parse source
             self._parse_source(source_part)
-            
+
             # Parse target
             self._parse_target(target_part)
-            
+
         except Exception as e:
             raise ValueError(f"Invalid rule syntax: {rule_str}") from e
-    
+
     def _parse_source(self, source: str) -> None:
         """Parse source part like 'a3[1x]' or 'x%[y.]'."""
         # Check for condition block
-        condition_match = re.search(r'\[([^\]]+)\]', source)
+        condition_match = re.search(r"\[([^\]]+)\]", source)
         if condition_match:
             condition = condition_match.group(1)
             source = source.replace(condition_match.group(0), "")
             self._parse_condition(condition)
-        
+
         # Parse state and direction
         if source.endswith("%"):
             self.source_state = source[:-1]
-            self.source_direction = "random"
+            self.source_random_direction = True
         else:
-            match = re.match(r'([a-z_]+)(\d+)?', source)
+            match = re.match(r"([a-z_]+)(\d+)?", source)
             if match:
                 self.source_state = match.group(1)
                 if match.group(2):
                     self.source_direction = int(match.group(2))
-    
+
     def _parse_target(self, target: str) -> None:
         """Parse target part like 'b', 'y%5', or 'z.3'."""
         if "%" in target:
@@ -91,31 +93,31 @@ class HexRule:
                 self.target_state = target[:-1]
                 self.target_rotation = 0  # Same direction
             else:
-                match = re.match(r'([a-z_]+)%(\d+)', target)
+                match = re.match(r"([a-z_]+)%(\d+)", target)
                 if match:
                     self.target_state = match.group(1)
                     self.target_rotation = int(match.group(2))
         elif "." in target:
             # Handle incoming direction syntax like 'z.3'
-            match = re.match(r'([a-z_]+)\.(\d+)', target)
+            match = re.match(r"([a-z_]+)\.(\d+)", target)
             if match:
                 self.target_state = match.group(1)
                 self.target_direction = int(match.group(2))
         else:
             # Simple target like 'b' or 'b3'
-            match = re.match(r'([a-z_]+)(\d+)?', target)
+            match = re.match(r"([a-z_]+)(\d+)?", target)
             if match:
                 self.target_state = match.group(1)
                 if match.group(2):
                     self.target_direction = int(match.group(2))
-    
+
     def _parse_condition(self, condition: str) -> None:
         """Parse condition like '1x', '-a', 'y.', '1y4'."""
         # Check for negation
         if condition.startswith("-"):
             self.condition_negated = True
             condition = condition[1:]
-        
+
         # Check for pointing marker
         if condition.endswith("."):
             self.condition_pointing = True
@@ -123,9 +125,9 @@ class HexRule:
         elif condition.endswith("%"):
             self.condition_random_dir = True
             condition = condition[:-1]
-        
+
         # Parse direction and state
-        match = re.match(r'(\d+)?([a-z_]+)(\d+)?', condition)
+        match = re.match(r"(\d+)?([a-z_]+)(\d+)?", condition)
         if match:
             if match.group(1):
                 self.condition_direction = int(match.group(1))
@@ -137,20 +139,20 @@ class HexRule:
 
 class HexAutomaton:
     """Advanced hexagonal cellular automaton with custom rule notation."""
-    
+
     def __init__(self, radius: int = 8):
         self.radius = radius
         self.grid: Dict[Tuple[int, int], HexCell] = {}
         self.rules: List[HexRule] = []
         self._init_empty_grid()
-    
+
     def _init_empty_grid(self) -> None:
         """Initialize grid with empty cells."""
         for q in range(-self.radius, self.radius + 1):
             for r in range(-self.radius, self.radius + 1):
                 if abs(q + r) <= self.radius:
                     self.grid[(q, r)] = HexCell("_")
-    
+
     def set_rules(self, rule_strings: List[str]) -> None:
         """Set the rules for the automaton."""
         self.rules = []
@@ -162,20 +164,20 @@ class HexAutomaton:
                     self.rules.append(HexRule(expanded_rule))
             except ValueError as e:
                 print(f"Warning: Skipping invalid rule '{rule_str}': {e}")
-    
+
     def _expand_macros(self, rule_str: str) -> List[str]:
         """Expand macro rules like 'x%' and '[y.]' into individual rules."""
         rules = [rule_str]
-        
+
         # Check if we have source % macro
         source_part, target_part = rule_str.split("=>")
         source_part = source_part.strip()
         target_part = target_part.strip()
-        
+
         # Expand source % - but treat it differently based on context
-        if re.search(r'[a-z_]+%', source_part):
+        if re.search(r"[a-z_]+%", source_part):
             # If source has % and target also has %, expand both together
-            if re.search(r'[a-z_]+%', target_part):
+            if re.search(r"[a-z_]+%", target_part):
                 # Both source and target have % - this is rotation/movement
                 # Keep as single rule with "random" marking
                 pass
@@ -184,58 +186,63 @@ class HexAutomaton:
                 # Expand to match all 6 directions PLUS no direction
                 expanded = []
                 # Add rule for no direction (empty state t)
-                new_source = re.sub(r'([a-z_]+)%', r'\1', source_part)
+                new_source = re.sub(r"([a-z_]+)%", r"\1", source_part)
                 expanded.append(f"{new_source} => {target_part}")
                 # Add rules for each direction
                 for direction in range(1, 7):
-                    new_source = re.sub(r'([a-z_]+)%', rf'\g<1>{direction}', source_part)
+                    new_source = re.sub(
+                        r"([a-z_]+)%", rf"\g<1>{direction}", source_part
+                    )
                     expanded.append(f"{new_source} => {target_part}")
                 rules = expanded
-        
+
         # Expand target % (random direction)
         final_rules = []
         for rule in rules:
             rule_target_part = rule.split("=>")[1].strip()
-            if re.search(r'[a-z_]+%$', rule_target_part):  # Ends with % (random direction)
+            if re.search(
+                r"[a-z_]+%$", rule_target_part
+            ):  # Ends with % (random direction)
                 # Expand target random direction to all 6 directions
                 for direction in range(1, 7):
-                    new_rule = re.sub(r'([a-z_]+)%$', rf'\g<1>{direction}', rule)
+                    new_rule = re.sub(r"([a-z_]+)%$", rf"\g<1>{direction}", rule)
                     final_rules.append(new_rule)
-            elif re.search(r'[a-z_]+%\d+', rule_target_part):  # Has %N (rotation)
+            elif re.search(r"[a-z_]+%\d+", rule_target_part):  # Has %N (rotation)
                 # Handle target rotation - keep as is for now
                 final_rules.append(rule)
             else:
                 final_rules.append(rule)
-        
+
         # Expand pointing conditions [y.]
-        if re.search(r'\[[a-z_]+\.\]', rule_str):
+        if re.search(r"\[[a-z_]+\.\]", rule_str):
             expanded = []
             for rule in final_rules:
-                pointing_match = re.search(r'\[([a-z_]+)\.\]', rule)
+                pointing_match = re.search(r"\[([a-z_]+)\.\]", rule)
                 if pointing_match:
                     state = pointing_match.group(1)
                     # Expand to check all directions for cells pointing to center
                     for direction in range(1, 7):
                         opposite_dir = ((direction + 3 - 1) % 6) + 1
                         new_rule = rule.replace(
-                            f'[{state}.]', 
-                            f'[{direction}{state}{opposite_dir}]'
+                            f"[{state}.]", f"[{direction}{state}{opposite_dir}]"
                         )
                         expanded.append(new_rule)
                 else:
                     expanded.append(rule)
             final_rules = expanded
-        
+
         return final_rules
-    
+
     def get_cell(self, q: int, r: int) -> HexCell:
         """Get cell at coordinates, return empty cell if out of bounds."""
         return self.grid.get((q, r), HexCell("_"))
-    
-    def set_cell(self, q: int, r: int, state: str, direction: Optional[int] = None) -> None:
+
+    def set_cell(
+        self, q: int, r: int, state: str, direction: Optional[int] = None
+    ) -> None:
         """Set cell state and direction."""
         self.grid[(q, r)] = HexCell(state, direction)
-    
+
     def toggle_cell(self, q: int, r: int) -> None:
         """Toggle cell between empty and active state."""
         cell = self.get_cell(q, r)
@@ -243,34 +250,36 @@ class HexAutomaton:
             self.set_cell(q, r, "a", 1)  # Default active state with direction
         else:
             self.set_cell(q, r, "_")
-    
+
     @staticmethod
     def get_neighbors(q: int, r: int) -> List[Tuple[int, int]]:
         """Get neighbor coordinates in clockwise order starting from upper-right."""
         directions = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
         return [(q + dq, r + dr) for dq, dr in directions]
-    
+
     def matches_condition(self, cell: HexCell, q: int, r: int, rule: HexRule) -> bool:
         """Check if a cell matches the rule's condition."""
         if not rule.condition_state:
             return True  # No condition
-        
+
         neighbors = self.get_neighbors(q, r)
-        
+
         if rule.condition_direction is not None:
             # Check specific direction
             direction_idx = rule.condition_direction - 1
             if 0 <= direction_idx < len(neighbors):
                 neighbor_pos = neighbors[direction_idx]
                 neighbor_cell = self.get_cell(*neighbor_pos)
-                
+
                 # Check if neighbor has the required state
                 state_matches = neighbor_cell.state == rule.condition_state
-                
+
                 # If the condition specifies a pointing direction, check it
                 if rule.condition_pointing_direction is not None:
                     # The neighbor must point in the specified direction
-                    pointing_matches = neighbor_cell.direction == rule.condition_pointing_direction
+                    pointing_matches = (
+                        neighbor_cell.direction == rule.condition_pointing_direction
+                    )
                     if rule.condition_negated:
                         return not (state_matches and pointing_matches)
                     else:
@@ -281,15 +290,20 @@ class HexAutomaton:
                         return not state_matches
                     else:
                         return state_matches
+            # If the specified direction is out of range, treat as missing neighbor
+            # For a negated condition, missing neighbor satisfies the negation; otherwise, it fails
+            return rule.condition_negated
         else:
             # Check any neighbor
             for neighbor_pos in neighbors:
                 neighbor_cell = self.get_cell(*neighbor_pos)
                 state_matches = neighbor_cell.state == rule.condition_state
-                
+
                 if rule.condition_pointing_direction is not None:
                     # The neighbor must point in the specified direction
-                    pointing_matches = neighbor_cell.direction == rule.condition_pointing_direction
+                    pointing_matches = (
+                        neighbor_cell.direction == rule.condition_pointing_direction
+                    )
                     if state_matches and pointing_matches:
                         if rule.condition_negated:
                             return False
@@ -302,77 +316,86 @@ class HexAutomaton:
                             return False
                         else:
                             return True
-            
+
             return rule.condition_negated
-    
-    def apply_rule(self, cell: HexCell, q: int, r: int, rule: HexRule) -> Optional[HexCell]:
+
+    def apply_rule(
+        self, cell: HexCell, q: int, r: int, rule: HexRule
+    ) -> Optional[HexCell]:
         """Apply a rule to a cell and return the new cell state."""
         # Check if source matches
         if rule.source_state != cell.state:
             return None
-        
-        # Handle source direction matching
-        if rule.source_direction is not None:
-            if rule.source_direction != "random":
-                # Specific direction required
-                if cell.direction != rule.source_direction:
-                    return None
-        else:
-            # No source direction specified - only match cells without direction
-            if cell.direction is not None:
+
+            # Handle source direction matching
+            if not self._matches_source_direction(cell, rule):
                 return None
-        
+    
+        def _matches_source_direction(self, cell: HexCell, rule: HexRule) -> bool:
+            """Check if the cell matches the rule's source direction requirements."""
+            if rule.source_random_direction:
+                # Accept any direction
+                return True
+            elif rule.source_direction is not None:
+                # Specific direction required
+                return cell.direction == rule.source_direction
+            else:
+                # No source direction specified - only match cells without direction
+                return cell.direction is None
+
         # Check condition
         if not self.matches_condition(cell, q, r, rule):
             return None
-        
+
         # Apply transformation
         new_state = rule.target_state
         new_direction = None
-        
+
         if rule.target_direction is not None:
             new_direction = rule.target_direction
         elif rule.target_rotation is not None:
             if cell.direction is not None:
                 new_direction = ((cell.direction + rule.target_rotation - 1) % 6) + 1
             else:
-                new_direction = rule.target_rotation if rule.target_rotation > 0 else None
-        # If neither target_direction nor target_rotation is specified, 
+                new_direction = (
+                    rule.target_rotation if rule.target_rotation > 0 else None
+                )
+        # If neither target_direction nor target_rotation is specified,
         # new_direction stays None (removes direction)
-        
+
         return HexCell(new_state, new_direction)
-    
+
     def step(self) -> None:
         """Advance the automaton by one generation."""
         import random
-        
+
         new_grid = {}
-        
+
         for (q, r), cell in self.grid.items():
             new_cell = cell  # Default: no change
-            
+
             # Collect all matching rules
             matching_rules = []
             for rule in self.rules:
                 result = self.apply_rule(cell, q, r, rule)
                 if result is not None:
                     matching_rules.append((rule, result))
-            
+
             # If multiple rules match, check if they're from the same macro expansion
             if len(matching_rules) > 1:
                 # Group rules by their base pattern (before macro expansion)
-                rule_groups = {}
+                rule_groups: Dict[str, List[Tuple[HexRule, HexCell]]] = {}
                 for rule, result in matching_rules:
                     # Identify the base pattern by removing direction numbers
                     base_pattern = self._get_base_pattern(rule)
                     if base_pattern not in rule_groups:
                         rule_groups[base_pattern] = []
                     rule_groups[base_pattern].append((rule, result))
-                
+
                 # For each group, if it has multiple rules, pick one randomly
                 chosen_rule = None
                 chosen_result = None
-                
+
                 for pattern, group in rule_groups.items():
                     if len(group) > 1:
                         # Multiple rules from same macro - pick randomly
@@ -382,36 +405,36 @@ class HexAutomaton:
                         # Single rule in this group - use it
                         chosen_rule, chosen_result = group[0]
                         break
-                
+
                 if chosen_result is not None:
                     new_cell = chosen_result
             elif len(matching_rules) == 1:
                 # Single matching rule
                 new_cell = matching_rules[0][1]
-            
+
             new_grid[(q, r)] = new_cell
-        
+
         self.grid = new_grid
-    
+
     def _get_base_pattern(self, rule: HexRule) -> str:
         """Get the base pattern of a rule before macro expansion."""
         import re
-        
+
         # Remove specific directions to get the base pattern
         pattern = rule.rule_str
-        
+
         # Replace specific directions with % to identify base patterns
         # t1[-a] => t2 becomes t%[-a] => t%
-        pattern = re.sub(r'([a-z_]+)\d+', r'\1%', pattern)
+        pattern = re.sub(r"([a-z_]+)\d+", r"\1%", pattern)
         # _[1t4] => a becomes _[%t%] => a
-        pattern = re.sub(r'\[(\d+)([a-z_]+)(\d+)\]', r'[\2.]', pattern)
-        
+        pattern = re.sub(r"\[(\d+)([a-z_]+)(\d+)\]", r"[\2.]", pattern)
+
         return pattern
-    
+
     def get_active_cells(self) -> Set[Tuple[int, int]]:
         """Get coordinates of all non-empty cells."""
         return {pos for pos, cell in self.grid.items() if cell.state != "_"}
-    
+
     def clear(self) -> None:
         """Clear all cells to empty state."""
         for pos in self.grid:

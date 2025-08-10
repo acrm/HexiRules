@@ -16,17 +16,19 @@ class Automaton:
     def parse_rule(self, rule: str) -> None:
         """Parse a rule string - either Conway-style 'B3/S23' or hex notation."""
         rule = rule.strip()
-        
+
         # Check if it's hex notation (contains '=>')
         if "=>" in rule:
             self.use_hex_rules = True
             self.hex_automaton = HexAutomaton(self.radius)
-            
+
             # Split multiple rules by newlines or semicolons
-            rule_lines = [r.strip() for r in rule.replace(';', '\n').split('\n') if r.strip()]
+            rule_lines = [
+                r.strip() for r in rule.replace(";", "\n").split("\n") if r.strip()
+            ]
             self.hex_automaton.set_rules(rule_lines)
             self.rule = rule
-            
+
             # Sync state from Conway format to hex format
             self._sync_to_hex()
         else:
@@ -47,7 +49,7 @@ class Automaton:
         """Sync Conway-style state to hex automaton."""
         if self.hex_automaton:
             self.hex_automaton.clear()
-            for (q, r) in self.state:
+            for q, r in self.state:
                 self.hex_automaton.set_cell(q, r, "a", 1)
 
     def _sync_from_hex(self) -> None:
@@ -105,7 +107,7 @@ class Automaton:
             return str(cell)
         else:
             return "●" if (q, r) in self.state else "○"
-    
+
     def get_cell_state(self, q: int, r: int) -> str:
         """Get cell state as string ('1' for alive, '0' for dead)."""
         if self.use_hex_rules and self.hex_automaton:
@@ -113,7 +115,7 @@ class Automaton:
             return "1" if cell.state != "_" else "0"
         else:
             return "1" if (q, r) in self.state else "0"
-    
+
     def set_cell_state(self, q: int, r: int, state: str) -> None:
         """Set cell state from string ('1' for alive, '0' for dead)."""
         if self.use_hex_rules and self.hex_automaton:
@@ -128,7 +130,7 @@ class Automaton:
                 self.state[key] = 1
             elif key in self.state:
                 del self.state[key]
-    
+
     def clear(self) -> None:
         """Clear all cells."""
         if self.use_hex_rules and self.hex_automaton:
@@ -136,7 +138,7 @@ class Automaton:
             self._sync_from_hex()
         else:
             self.state.clear()
-    
+
     def set_rule(self, rule: str) -> None:
         """Set the rule for the automaton."""
         self.parse_rule(rule)
