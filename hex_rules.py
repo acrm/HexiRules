@@ -330,7 +330,7 @@ class HexAutomaton:
             # Handle source direction matching
             if not self._matches_source_direction(cell, rule):
                 return None
-    
+
         def _matches_source_direction(self, cell: HexCell, rule: HexRule) -> bool:
             """Check if the cell matches the rule's source direction requirements."""
             if rule.source_random_direction:
