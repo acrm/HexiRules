@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "hexirules"
 version = "0.0.1"
 description = "Hexagonal cellular automaton with GUI"
-readme = "README.md"
+readme = "docs/README.md"
 authors = [{name = "ACRM", email = ""}]
 license = {file = "LICENSE"}
 requires-python = ">=3.8"

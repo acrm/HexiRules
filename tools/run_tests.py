@@ -1,40 +1,21 @@
 #!/usr/bin/env python3
-"""
-Comprehensive test runner for HexiRules.
-Runs root-level tests (e.g., test_hex_rules.py) and automatically discovers and runs all test modules in the tests/ directory.
-Provides a compact, Windows-friendly summary without Unicode emojis.
-"""
+"""Run the HexiRules test suite."""
 
-import unittest
-import sys
 import os
-from typing import Iterator, Callable
+import sys
+import unittest
+from pathlib import Path
+from typing import Iterator
 
-# Add project root to path
-sys.path.insert(0, os.path.dirname(__file__))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
 
 
 def _load_root_tests(
     loader: unittest.TestLoader, suite: unittest.TestSuite, tests_dir: str
 ) -> int:
-    """Load root-level tests if tests/ isn't a package."""
-    total_loaded = 0
-    has_tests_pkg = os.path.isdir(tests_dir) and os.path.isfile(
-        os.path.join(tests_dir, "__init__.py")
-    )
-    if not has_tests_pkg:
-        root_tests = ["test_hex_rules", "test_gui_constants"]
-        for name in root_tests:
-            try:
-                module = __import__(name)
-                mod_suite = loader.loadTestsFromModule(module)
-                suite.addTest(mod_suite)
-                count = mod_suite.countTestCases()
-                total_loaded += count
-                print(f"Loaded {count} tests from {name}")
-            except ImportError:
-                continue
-    return total_loaded
+    """Backward compatibility placeholder."""
+    return 0
 
 
 def _load_package_tests(
@@ -49,7 +30,7 @@ def _load_package_tests(
         discovered_suite = loader.discover(
             start_dir=tests_dir,
             pattern="test*.py",
-            top_level_dir=os.path.dirname(__file__),
+            top_level_dir=str(ROOT),
         )
 
         def iter_cases(suite: unittest.TestSuite) -> Iterator[unittest.TestCase]:
@@ -81,7 +62,7 @@ def run_all_tests(include_gui: bool = True) -> int:
     """Run all test suites and return process exit code."""
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
-    tests_dir = os.path.join(os.path.dirname(__file__), "tests")
+    tests_dir = str(ROOT / "tests")
 
     total_loaded = _load_root_tests(loader, suite, tests_dir)
     total_loaded += _load_package_tests(loader, suite, tests_dir, include_gui)
