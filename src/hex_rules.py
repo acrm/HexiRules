@@ -183,10 +183,13 @@ class HexAutomaton:
                     expanded_src: List[str] = []
                     for direction in range(1, 7):
 
+                        def _repl(m: re.Match[str], d: int = direction) -> str:
+                            return f"{m.group(1)}{d}"
+
                         new_source = re.sub(
-                            r"([a-z_]+)%", 
-                            lambda m, d=direction: f"{m.group(1)}{d}", 
-                            source_part
+                            r"([a-z_]+)%",
+                            _repl,
+                            source_part,
                         )
                         expanded_src.append(f"{new_source} => {target_part}")
                     rules = expanded_src
