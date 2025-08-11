@@ -5,7 +5,7 @@ Implements the custom rule notation for hexagonal cellular automata
 
 import random
 import re
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Match, Optional, Set, Tuple
 
 
 class HexCell:
@@ -183,7 +183,7 @@ class HexAutomaton:
                     expanded_src: List[str] = []
                     for direction in range(1, 7):
 
-                        def _repl(m: re.Match[str], d: int = direction) -> str:
+                        def _repl(m: Match[str], d: int = direction) -> str:
                             return f"{m.group(1)}{d}"
 
                         new_source = re.sub(
