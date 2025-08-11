@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from hex_rules import HexAutomaton, HexRule, HexCell
 
 
@@ -128,6 +129,19 @@ class TestHexRules(unittest.TestCase):
         # Test that it doesn't crash on complex rules
         complex_rules = self.automaton._expand_macros("a[x] => b")
         self.assertIsInstance(complex_rules, list)
+
+    def test_substep_selection_and_application(self) -> None:
+        """Test rule selection and random application substeps."""
+        self.automaton.set_rules(["a => b", "a => c"])
+        self.automaton.set_cell(0, 0, "a")
+
+        selections = self.automaton.select_applicable_rules()
+        self.assertEqual(len(selections[(0, 0)]), 2)
+
+        with patch("hex_rules.random.choice", side_effect=lambda seq: seq[0]):
+            self.automaton.apply_random_rules(selections)
+
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "b")
 
 
 if __name__ == "__main__":
