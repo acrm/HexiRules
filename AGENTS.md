@@ -25,6 +25,25 @@
 - UI labels: Title Case; other user text: sentence case.
 - Chat responses: short, impersonal, no emojis, no fluff.
 
+### Commit Message Enforcement
+Local automation is provided to help enforce these rules:
+
+1. Use the commit template:
+	git config commit.template .gitmessage
+2. Enable the hook-based linter:
+	git config core.hooksPath .githooks
+3. The hook rejects commits if:
+	- Subject line > 72 characters
+	- Subject not in (roughly) imperative mood (heuristic: flags verbs ending with 's' or 'ed')
+	- Subject starts with a lowercase letter
+	- Body lines exceed 72 characters
+	- Emoji detected in subject
+
+You can run the linter manually:
+	python tools/commit_msg_lint.py .git/COMMIT_EDITMSG
+
+Heuristics are intentionally lightweight (no external deps). Adjust allowlists in tools/commit_msg_lint.py if needed.
+
 ## Repository layout
 - GUI code lives in `src/gui.py`.
 - Conway engine in `src/automaton.py`; HexiDirect engine in `src/hex_rules.py`.

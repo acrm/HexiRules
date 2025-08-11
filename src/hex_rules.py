@@ -169,67 +169,75 @@ class HexAutomaton:
         """Expand macro rules like 'x%' and '[y.]' into individual rules."""
         rules = [rule_str]
 
-        # Check if we have source % macro
-        source_part, target_part = rule_str.split("=>")
-        source_part = source_part.strip()
-        target_part = target_part.strip()
+        if "=>" in rule_str:
+            source_part, target_part = rule_str.split("=>", 1)
+            source_part = source_part.strip()
+            target_part = target_part.strip()
 
-        # Expand source % - but treat it differently based on context
-        if re.search(r"[a-z_]+%", source_part):
-            # If source has % and target also has %, expand both together
-            if re.search(r"[a-z_]+%", target_part):
-                # Both source and target have % - this is rotation/movement
-                # Keep as single rule with "random" marking
-                pass
-            else:
-                # Only source has % - this means "any directional variant"
-                # Expand to match all 6 directions PLUS no direction
-                expanded = []
-                # Add rule for no direction (empty state t)
-                new_source = re.sub(r"([a-z_]+)%", r"\1", source_part)
-                expanded.append(f"{new_source} => {target_part}")
-                # Add rules for each direction
-                for direction in range(1, 7):
-                    new_source = re.sub(
-                        r"([a-z_]+)%", rf"\g<1>{direction}", source_part
-                    )
-                    expanded.append(f"{new_source} => {target_part}")
-                rules = expanded
+            # Expand source % (any specified direction; do not include directionless)
+            if re.search(r"([a-z_]+)%", source_part):
+                # If both source and target have %, keep as-is for now
+                if re.search(r"([a-z_]+)%", target_part):
+                    pass
+                else:
+                    expanded_src: List[str] = []
+                    for direction in range(1, 7):
 
-        # Expand target % (random direction)
-        final_rules = []
+                        new_source = re.sub(
+                            r"([a-z_]+)%", 
+                            lambda m, d=direction: f"{m.group(1)}{d}", 
+                            source_part
+                        )
+                        expanded_src.append(f"{new_source} => {target_part}")
+                    rules = expanded_src
+
+        # Expand target at end
+        final_rules: List[str] = []
         for rule in rules:
-            rule_target_part = rule.split("=>")[1].strip()
-            if re.search(
-                r"[a-z_]+%$", rule_target_part
-            ):  # Ends with % (random direction)
-                # Expand target random direction to all 6 directions
+            src_part, tgt_part = [p.strip() for p in rule.split("=>", 1)]
+            # Case 1: target ends with % => expand to 6 directions
+            if re.search(r"^([a-z_]+)%$", tgt_part):
+                base = tgt_part[:-1]
                 for direction in range(1, 7):
-                    new_rule = re.sub(r"([a-z_]+)%$", rf"\g<1>{direction}", rule)
-                    final_rules.append(new_rule)
-            elif re.search(r"[a-z_]+%\d+", rule_target_part):  # Has %N (rotation)
-                # Handle target rotation - keep as is for now
-                final_rules.append(rule)
-            else:
-                final_rules.append(rule)
+                    final_rules.append(f"{src_part} => {base}{direction}")
+                continue
 
-        # Expand pointing conditions [y.]
+            # Case 2: target has %N rotation
+            m_rot = re.match(r"^([a-z_]+)%(\d+)$", tgt_part)
+            if m_rot:
+                target_state = m_rot.group(1)
+                rot = int(m_rot.group(2)) % 6
+                # Detect explicit source direction
+                m_src = re.match(r"^([a-z_]+)(\d+)$", src_part)
+                if m_src:
+                    src_dir = int(m_src.group(2))
+                    new_dir = ((src_dir + rot - 1) % 6) + 1
+                    final_rules.append(f"{src_part} => {target_state}{new_dir}")
+                else:
+                    # No explicit source direction: branch to 6 variants
+                    for d in range(1, 7):
+                        final_rules.append(f"{src_part} => {target_state}{d}")
+                continue
+
+            # Otherwise leave as-is
+            final_rules.append(rule)
+
+        # Expand pointing conditions [state.] into six directional checks
         if re.search(r"\[[a-z_]+\.\]", rule_str):
-            expanded = []
+            expanded_pointing: List[str] = []
             for rule in final_rules:
                 pointing_match = re.search(r"\[([a-z_]+)\.\]", rule)
                 if pointing_match:
                     state = pointing_match.group(1)
-                    # Expand to check all directions for cells pointing to center
                     for direction in range(1, 7):
                         opposite_dir = ((direction + 3 - 1) % 6) + 1
                         new_rule = rule.replace(
                             f"[{state}.]", f"[{direction}{state}{opposite_dir}]"
                         )
-                        expanded.append(new_rule)
+                        expanded_pointing.append(new_rule)
                 else:
-                    expanded.append(rule)
-            final_rules = expanded
+                    expanded_pointing.append(rule)
+            final_rules = expanded_pointing
 
         return final_rules
 
@@ -327,21 +335,9 @@ class HexAutomaton:
         if rule.source_state != cell.state:
             return None
 
-            # Handle source direction matching
-            if not self._matches_source_direction(cell, rule):
-                return None
-
-        def _matches_source_direction(self, cell: HexCell, rule: HexRule) -> bool:
-            """Check if the cell matches the rule's source direction requirements."""
-            if rule.source_random_direction:
-                # Accept any direction
-                return True
-            elif rule.source_direction is not None:
-                # Specific direction required
-                return cell.direction == rule.source_direction
-            else:
-                # No source direction specified - only match cells without direction
-                return cell.direction is None
+        # Handle source direction matching
+        if not self._matches_source_direction(cell, rule):
+            return None
 
         # Check condition
         if not self.matches_condition(cell, q, r, rule):
@@ -357,9 +353,8 @@ class HexAutomaton:
             if cell.direction is not None:
                 new_direction = ((cell.direction + rule.target_rotation - 1) % 6) + 1
             else:
-                new_direction = (
-                    rule.target_rotation if rule.target_rotation > 0 else None
-                )
+                # Option A: if source has no direction, rotation keeps None
+                new_direction = None
         # If neither target_direction nor target_rotation is specified,
         # new_direction stays None (removes direction)
 
@@ -419,3 +414,18 @@ class HexAutomaton:
         """Clear all cells to empty state."""
         for pos in self.grid:
             self.grid[pos] = HexCell("_")
+
+    def _matches_source_direction(self, cell: HexCell, rule: HexRule) -> bool:
+        """Check if the cell matches the rule's source direction requirements.
+
+        Semantics:
+        - source_random_direction (e.g., 'a%') matches any specified direction (1..6), not None.
+        - source_direction (e.g., 'a3') matches only that specific direction.
+        - no direction specified (e.g., 'a') matches only cells without a direction (None).
+        """
+        if rule.source_random_direction:
+            return cell.direction is not None
+        if rule.source_direction is not None:
+            return cell.direction == rule.source_direction
+        # No source direction specified
+        return cell.direction is None

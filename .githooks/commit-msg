@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Commit message hook enforcing project message guidelines.
+# Delegates to tools/commit_msg_lint.py.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PY=${PYTHON:-python}
+
+# Use venv python if available
+if [ -x "$REPO_ROOT/.venv/Scripts/python.exe" ]; then
+  PY="$REPO_ROOT/.venv/Scripts/python.exe"
+elif [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+  PY="$REPO_ROOT/.venv/bin/python"
+fi
+
+exec "$PY" "$REPO_ROOT/tools/commit_msg_lint.py" "$1"

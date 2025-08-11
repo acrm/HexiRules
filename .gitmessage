@@ -1,0 +1,6 @@
+# Commit message template (lines starting with # are ignored)
+Add feature: concise imperative summary (replace before commit)
+#
+# Optional body wrapped at 72 columns explaining what and why, not how.
+# Use bullet points with '*' or '-' for lists.
+# Reference issues as needed (e.g., Fixes #123) on a separate line.

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "hexirules"
 version = "0.0.1"
 description = "Hexagonal cellular automaton with GUI"
-readme = "docs/README.md"
+readme = "README.md"
 authors = [{name = "ACRM", email = ""}]
 license = {file = "LICENSE"}
 requires-python = ">=3.8"
@@ -26,6 +26,7 @@ classifiers = [
 
 [project.scripts]
 hexirules = "main:main"
+hexirules-cli = "cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/acrm/HexiRules"
@@ -33,10 +34,19 @@ hexirules = "main:main"
 "Source" = "https://github.com/acrm/HexiRules"
 
 [tool.setuptools]
-packages = ["hexirules"]
+package-dir = {"" = "src"}
+py-modules = [
+  "automaton",
+  "cli",
+  "gui",
+  "hex_rules",
+  "hex_examples",
+  "version",
+  "main",
+]
 
-[tool.setuptools.package-dir]
-hexirules = "."
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.black]
 line-length = 88

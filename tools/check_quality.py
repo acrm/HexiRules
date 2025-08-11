@@ -44,7 +44,11 @@ def module_available(module: str) -> bool:
 
 
 def discover_python_files(root: Path) -> List[str]:
-    """Discover all Python files to check, excluding common ignore paths."""
+    """Discover all Python files to check, excluding common ignore paths.
+
+    Also skips top-level compatibility wrapper(s) like check_quality.py to
+    avoid MyPy duplicate module conflicts with tools/check_quality.py.
+    """
     ignore_dirs = {
         ".git",
         "__pycache__",
@@ -62,7 +66,14 @@ def discover_python_files(root: Path) -> List[str]:
         dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
         for fname in filenames:
             if fname.endswith(".py"):
-                files.append(str(Path(dirpath) / fname))
+                path = Path(dirpath) / fname
+                # Skip root-level compatibility wrappers to avoid module duplication
+                if path.parent == root and path.name in {
+                    "check_quality.py",
+                    "run_tests.py",
+                }:
+                    continue
+                files.append(str(path))
     return files
 
 

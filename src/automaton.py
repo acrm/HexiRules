@@ -4,9 +4,16 @@ from hex_rules import HexAutomaton
 
 
 class Automaton:
-    """Hexagonal cellular automaton supporting both Conway-style and hex rule notation."""
+    """Hexagonal cellular automaton supporting both Conway-style and hex rule notation.
 
-    def __init__(self, radius: int = 8, rule: str = "B3/S23") -> None:
+    Constructor is safer now: rule is the first argument; radius is keyword-only.
+    Examples:
+        Automaton()                      -> default rule B3/S23, radius=8
+        Automaton("B2/S3")              -> rule B2/S3, radius=8
+        Automaton("a%=>_", radius=5)    -> hex rules, radius=5
+    """
+
+    def __init__(self, rule: str = "B3/S23", *, radius: int = 8) -> None:
         self.radius = radius
         self.state: Dict[Tuple[int, int], int] = {}
         self.hex_automaton: Optional[HexAutomaton] = None

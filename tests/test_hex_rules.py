@@ -143,6 +143,58 @@ class TestHexRules(unittest.TestCase):
 
         self.assertEqual(self.automaton.get_cell(0, 0).state, "b")
 
+    def test_rotation_when_source_directionless_branches(self) -> None:
+        """a => b%2 with directionless source expands to 6 target variants; one is chosen deterministically for test."""
+        # Explicitly craft a rule without source direction; expansion will create 6 target variants
+        self.automaton.set_rules(["a => b%2"])
+        self.automaton.set_cell(0, 0, "a", None)
+        with patch("hex_rules.random.choice", side_effect=lambda seq: seq[0]):
+            self.automaton.step()
+        # Deterministically first variant selected -> b1
+        cell = self.automaton.get_cell(0, 0)
+        self.assertEqual((cell.state, cell.direction), ("b", 1))
+
+    def test_source_direction_exact_match(self) -> None:
+        """'a3 => b' applies only to cells with direction 3."""
+        self.automaton.set_rules(["a3 => b"])
+        # a without direction should not match
+        self.automaton.set_cell(0, 0, "a", None)
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "a")
+        # a with different direction should not match
+        self.automaton.set_cell(0, 1, "a", 2)
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 1).state, "a")
+        # a with direction 3 should match
+        self.automaton.set_cell(1, 0, "a", 3)
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(1, 0).state, "b")
+
+    def test_source_direction_unspecified_means_directionless(self) -> None:
+        """'a => b' applies only to directionless 'a' cells (direction None)."""
+        self.automaton.set_rules(["a => b"])
+        # directionless matches
+        self.automaton.set_cell(0, 0, "a", None)
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "b")
+        # a with direction should not match
+        self.automaton.set_cell(0, 1, "a", 5)
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 1).state, "a")
+
+    def test_source_direction_any_with_percent(self) -> None:
+        """'a% => b' applies to 'a' with any specified direction (not None)."""
+        self.automaton.set_rules(["a% => b"])
+        # None should NOT match
+        self.automaton.set_cell(0, 0, "a", None)
+        # Any direction should match
+        self.automaton.set_cell(1, 0, "a", 1)
+        self.automaton.set_cell(1, 1, "a", 6)
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "a")
+        self.assertEqual(self.automaton.get_cell(1, 0).state, "b")
+        self.assertEqual(self.automaton.get_cell(1, 1).state, "b")
+
 
 if __name__ == "__main__":
     unittest.main()
