@@ -2,13 +2,14 @@
 
 ## Testing
 - Run `python tools/run_tests.py --no-gui`.
+- Format changed files with `python -m black`.
 - Run `HEXIRULES_NO_GUI=1 python tools/check_quality.py`.
 
 ## Code style
 - Python 3.8+ only; no external dependencies.
 - Minimal diffs; do not reformat or rename unrelated code.
 - Type hints on public functions and classes; use explicit imports.
-- Black-compatible formatting; MyPy-friendly typing.
+- Black-compatible formatting; run `python -m black` before committing.
 - Naming: snake_case for functions and variables, PascalCase for classes, UPPER_SNAKE for constants.
 - Keep functions small (≈40 lines); extract helpers when needed.
 - Avoid global state; keep engines pure and side effects in the GUI.
