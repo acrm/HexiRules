@@ -49,3 +49,10 @@
 - The system shall display status including world name, active cell count, and a compact rules summary.
 - The system shall log rule parsing, expansion, applications, and step summaries in a scrollable log.
 - The system shall allow clearing the log.
+
+## Command-Line Interface
+- The system shall provide a command-line interface for running the automaton.
+- The CLI shall allow setting rules, editing cell states, and advancing steps.
+- The CLI shall allow querying individual cell states.
+- The CLI shall display active rules and list all live cells on request.
+- The CLI shall render the current grid as ASCII art.
