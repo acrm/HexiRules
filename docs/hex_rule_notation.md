@@ -64,8 +64,8 @@ letter           = "a".."z" ;
 
 ## 4. Semantics
 
-- Rules are applied in parallel to all cells
-- Only one rule is applied per cell, chosen randomly among valid matches
+- Rules are applied in parallel to all cells.
+- Each step first selects all matching expanded rules for a cell, then applies one randomly.
 - States can have direction suffixes (e.g., `a3`, `wH1`)
 - `%` implies random direction (macro-expanded)
 - `.` in condition means neighbor points toward center

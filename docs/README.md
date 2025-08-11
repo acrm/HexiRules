@@ -18,6 +18,7 @@ A hexagonal cellular automaton simulator with an interactive GUI, supporting bot
    - Per-world radius, mode (Conway/HexiDirect), JSON save/load
    - HexiDirect editing: Left=cycle state, Right=cycle direction, Middle=clear; Conway: Left toggles
 - Logging panel that explains rule expansion and applications during a step
+- Each step first selects all matching rules per cell, then applies one at random
 - Unified quality checker (MyPy, Black check, unit tests)
 
 ## 🚀 Quick Start

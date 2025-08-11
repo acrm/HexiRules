@@ -365,56 +365,36 @@ class HexAutomaton:
 
         return HexCell(new_state, new_direction)
 
-    def step(self) -> None:
-        """Advance the automaton by one generation."""
-        import random
-
-        new_grid = {}
-
+    def select_applicable_rules(
+        self,
+    ) -> Dict[Tuple[int, int], List[Tuple[HexRule, HexCell]]]:
+        """Select expanded rules that apply to each cell."""
+        selections: Dict[Tuple[int, int], List[Tuple[HexRule, HexCell]]] = {}
         for (q, r), cell in self.grid.items():
-            new_cell = cell  # Default: no change
-
-            # Collect all matching rules
-            matching_rules = []
             for rule in self.rules:
                 result = self.apply_rule(cell, q, r, rule)
                 if result is not None:
-                    matching_rules.append((rule, result))
+                    selections.setdefault((q, r), []).append((rule, result))
+        return selections
 
-            # If multiple rules match, check if they're from the same macro expansion
-            if len(matching_rules) > 1:
-                # Group rules by their base pattern (before macro expansion)
-                rule_groups: Dict[str, List[Tuple[HexRule, HexCell]]] = {}
-                for rule, result in matching_rules:
-                    # Identify the base pattern by removing direction numbers
-                    base_pattern = self._get_base_pattern(rule)
-                    if base_pattern not in rule_groups:
-                        rule_groups[base_pattern] = []
-                    rule_groups[base_pattern].append((rule, result))
-
-                # For each group, if it has multiple rules, pick one randomly
-                chosen_rule = None
-                chosen_result = None
-
-                for pattern, group in rule_groups.items():
-                    if len(group) > 1:
-                        # Multiple rules from same macro - pick randomly
-                        chosen_rule, chosen_result = random.choice(group)
-                        break
-                    else:
-                        # Single rule in this group - use it
-                        chosen_rule, chosen_result = group[0]
-                        break
-
-                if chosen_result is not None:
-                    new_cell = chosen_result
-            elif len(matching_rules) == 1:
-                # Single matching rule
-                new_cell = matching_rules[0][1]
-
+    def apply_random_rules(
+        self, selections: Dict[Tuple[int, int], List[Tuple[HexRule, HexCell]]]
+    ) -> None:
+        """Apply one randomly chosen rule from selections to each cell."""
+        new_grid: Dict[Tuple[int, int], HexCell] = {}
+        for (q, r), cell in self.grid.items():
+            candidates = selections.get((q, r), [])
+            new_cell = cell
+            if candidates:
+                _, chosen_result = random.choice(candidates)
+                new_cell = chosen_result
             new_grid[(q, r)] = new_cell
-
         self.grid = new_grid
+
+    def step(self) -> None:
+        """Advance the automaton by one generation."""
+        selections = self.select_applicable_rules()
+        self.apply_random_rules(selections)
 
     def _get_base_pattern(self, rule: HexRule) -> str:
         """Get the base pattern of a rule before macro expansion."""
