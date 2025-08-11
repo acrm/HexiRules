@@ -45,6 +45,15 @@ class TestCLI(unittest.TestCase):
         summary_output = run_cmd(self.cli, "summary")
         self.assertIn("0", summary_output)
 
+    def test_hex_rule_mode(self) -> None:
+        cli = HexCLI(Automaton(radius=3, rule="a=>_"), stdout=io.StringIO())
+        rules_output = run_cmd(cli, "rules")
+        self.assertIn("a=>_", rules_output)
+        run_cmd(cli, "set 0 0 1")
+        self.assertEqual("1", run_cmd(cli, "query 0 0"))
+        run_cmd(cli, "step")
+        self.assertEqual("0", run_cmd(cli, "query 0 0"))
+
 
 if __name__ == "__main__":
     unittest.main()
