@@ -8,11 +8,9 @@ Supports both Conway-style totalistic rules and HexiDirect symbolic rules.
 Also exposes a minimal HexCanvas helper used by geometry-focused tests.
 """
 
-from gui import create_gui
-
-# Minimal geometry utilities for tests
-from typing import Dict, Tuple, List
+import importlib
 import math
+from typing import Dict, Tuple, List
 
 try:
     import tkinter as tk  # Only needed when tests instantiate the canvas
@@ -71,7 +69,8 @@ class HexCanvas:
 
 def main() -> None:
     """Main entry point for HexiRules."""
-    gui = create_gui()
+    gui_mod = importlib.import_module("gui")
+    gui = gui_mod.create_gui()
     gui.run()
 
 

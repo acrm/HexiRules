@@ -1,5 +1,6 @@
 import tkinter as tk
 
+
 def build_cells_tab(frame: tk.Misc, on_clear, on_random) -> None:
     info = tk.Label(
         frame,
@@ -15,5 +16,9 @@ def build_cells_tab(frame: tk.Misc, on_clear, on_random) -> None:
 
     btns = tk.Frame(frame)
     btns.pack(fill=tk.X, padx=8, pady=6)
-    tk.Button(btns, text="Clear", command=on_clear, bg="lightcoral").pack(side=tk.LEFT, padx=3)
-    tk.Button(btns, text="Random", command=on_random, bg="lightyellow").pack(side=tk.LEFT, padx=3)
+    tk.Button(btns, text="Clear", command=on_clear, bg="lightcoral").pack(
+        side=tk.LEFT, padx=3
+    )
+    tk.Button(btns, text="Random", command=on_random, bg="lightyellow").pack(
+        side=tk.LEFT, padx=3
+    )
