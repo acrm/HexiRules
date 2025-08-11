@@ -19,17 +19,25 @@ class HexiController:
         self.current_world: Optional[str] = None
 
     # Worlds
-    def create_world(self, name: str, radius: int, is_hex: bool, rules_text: str) -> None:
+    def create_world(
+        self, name: str, radius: int, is_hex: bool, rules_text: str
+    ) -> None:
         world: Dict[str, Any] = {
             "name": name,
             "radius": radius,
             "is_hex": is_hex,
             "rules_text": rules_text,
-            "conway": Automaton(radius=radius, rule=rules_text if not is_hex else "B3/S23"),
+            "conway": Automaton(
+                radius=radius, rule=rules_text if not is_hex else "B3/S23"
+            ),
             "hex": HexAutomaton(radius=radius),
         }
         if is_hex and rules_text:
-            rules = [r.strip() for r in rules_text.replace(";", "\n").split("\n") if r.strip()]
+            rules = [
+                r.strip()
+                for r in rules_text.replace(";", "\n").split("\n")
+                if r.strip()
+            ]
             world["hex"].set_rules(rules)
         self.worlds[name] = world
 
@@ -49,7 +57,9 @@ class HexiController:
         return w["hex"] if w.get("is_hex", False) else w["conway"]
 
     # Persistence
-    def save_world_to_file(self, path: str, is_hexidirect: bool, rules_text: str) -> None:
+    def save_world_to_file(
+        self, path: str, is_hexidirect: bool, rules_text: str
+    ) -> None:
         world = self.get_current_world()
         world["is_hex"] = bool(is_hexidirect)
         world["rules_text"] = rules_text
@@ -80,7 +90,9 @@ class HexiController:
         # populate
         world["hex"].clear()
         for item in data.get("hex_cells", []):
-            world["hex"].set_cell(int(item["q"]), int(item["r"]), str(item["s"]), item.get("d"))
+            world["hex"].set_cell(
+                int(item["q"]), int(item["r"]), str(item["s"]), item.get("d")
+            )
         world["conway"].clear()
         for pos in data.get("conway_cells", []):
             try:
@@ -153,7 +165,9 @@ class HexiController:
                 for (q, r), cell in w["hex"].grid.items():
                     for rule in w["hex"].rules:
                         checked_count += 1
-                        if rule.source_state == cell.state and w["hex"].matches_condition(cell, q, r, rule):
+                        if rule.source_state == cell.state and w[
+                            "hex"
+                        ].matches_condition(cell, q, r, rule):
                             match_count += 1
                 logs.append(
                     f"Checked {checked_count} rule-cell combinations, found {match_count} matches"
