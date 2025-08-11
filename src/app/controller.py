@@ -162,12 +162,14 @@ class HexiController:
                 # Analyze rule applications (summary only)
                 checked_count = 0
                 match_count = 0
-                for (q, r), cell in w["hex"].grid.items():
-                    for rule in w["hex"].rules:
+                hex_world = w["hex"]
+                for (q, r), cell in hex_world.grid.items():
+                    for rule in hex_world.rules:
                         checked_count += 1
-                        if rule.source_state == cell.state and w[
-                            "hex"
-                        ].matches_condition(cell, q, r, rule):
+                        if (
+                            rule.source_state == cell.state
+                            and hex_world.matches_condition(cell, q, r, rule)
+                        ):
                             match_count += 1
                 logs.append(
                     f"Checked {checked_count} rule-cell combinations, found {match_count} matches"
