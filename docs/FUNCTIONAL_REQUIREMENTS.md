@@ -21,6 +21,7 @@
 - The system shall expand macro rules into concrete directional variants prior to evaluation.
 - The system shall apply grouped random selection when multiple rules arising from the same macro expansion match a cell.
 - The system shall evaluate rule conditions against the six neighbors in clockwise order.
+- The system shall process rules in two substeps: `select_applicable_rules` gathers all matching rules for each cell, and `apply_random_rules` randomly selects one rule to apply to each cell.
 - The system shall apply at most one resulting transformation per cell per step.
 ## Graphical User Interface
 - The system shall provide a graphical user interface.
