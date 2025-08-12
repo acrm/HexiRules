@@ -144,6 +144,8 @@ class HexiController:
             for line in rules_text.split("\n"):
                 rules.extend([r.strip() for r in line.split(",") if r.strip()])
             if rules:
+                # Persist rules on the world so switching worlds retains edits
+                w["rules_text"] = "\n".join(rules_text.split("\n"))
                 logs.append(f"Rules: {rules}")
                 w["hex"].set_rules(rules)
                 logs.append("Expanded rules:")
@@ -189,6 +191,8 @@ class HexiController:
                 if len(new_active) > 10:
                     logs.append(f"  ... and {len(new_active) - 10} more")
         else:
+            # Persist Conway rule on the world
+            w["rules_text"] = rules_text
             logs.append(f"Conway rule: {rules_text}")
             w["conway"].set_rule(rules_text)
             w["conway"].step()

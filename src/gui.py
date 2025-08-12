@@ -268,7 +268,10 @@ class HexiRulesGUI:
                 self.canvas.create_text(x, y, text=label, font=("Arial", 8, "bold"))
             if direction is not None:
                 dot_distance = self.cell_size * 0.8
-                angle_degrees = 90 - (direction - 1) * 60
+                # Engine neighbor order is [(1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1)]
+                # which corresponds to angles 0°, 60°, 120°, 180°, 240°, 300°.
+                # Map direction 1 -> 0° and add 60° CCW per step.
+                angle_degrees = (direction - 1) * 60
                 ang = math.radians(angle_degrees)
                 dx = dot_distance * math.cos(ang)
                 dy = -dot_distance * math.sin(ang)
