@@ -5,6 +5,7 @@ Implements the custom rule notation for hexagonal cellular automata
 
 import random
 import re
+from dataclasses import dataclass
 from typing import Dict, List, Match, Optional, Set, Tuple
 
 
@@ -29,6 +30,15 @@ class HexCell:
         return self.state == other.state and self.direction == other.direction
 
 
+@dataclass
+class Condition:
+    state: str
+    direction: Optional[int] = None
+    pointing_direction: Optional[int] = None
+    negated: bool = False
+    random_dir: bool = False
+
+
 class HexRule:
     """Represents a single hexagonal rule: source => target."""
 
@@ -41,12 +51,14 @@ class HexRule:
         self.target_state: str = ""
         self.target_direction: Optional[int] = None
         self.target_rotation: Optional[int] = None
+        # Backwards compatible single-condition attributes
         self.condition_direction: Optional[int] = None
         self.condition_state: str = ""
         self.condition_pointing_direction: Optional[int] = None
         self.condition_negated: bool = False
-        self.condition_pointing: bool = False
         self.condition_random_dir: bool = False
+        # New multi-condition support: list of AND-groups, each list is OR options
+        self.conditions: List[List[Condition]] = []
         self.parse_rule(rule_str)
 
     def parse_rule(self, rule_str: str) -> None:
@@ -67,12 +79,22 @@ class HexRule:
 
     def _parse_source(self, source: str) -> None:
         """Parse source part like 'a3[1x]' or 'x%[y.]'."""
-        # Check for condition block
-        condition_match = re.search(r"\[([^\]]+)\]", source)
-        if condition_match:
-            condition = condition_match.group(1)
-            source = source.replace(condition_match.group(0), "")
-            self._parse_condition(condition)
+        # Extract condition blocks
+        condition_parts = re.findall(r"\[([^\]]+)\]", source)
+        if condition_parts:
+            source = re.sub(r"\[[^\]]+\]", "", source)
+            for part in condition_parts:
+                options = [self._parse_condition(opt) for opt in part.split("|")]
+                self.conditions.append(options)
+
+        # For backwards compatibility populate single-condition attributes
+        if len(self.conditions) == 1 and len(self.conditions[0]) == 1:
+            c = self.conditions[0][0]
+            self.condition_direction = c.direction
+            self.condition_state = c.state
+            self.condition_pointing_direction = c.pointing_direction
+            self.condition_negated = c.negated
+            self.condition_random_dir = c.random_dir
 
         # Parse state and direction
         if source.endswith("%"):
@@ -111,30 +133,35 @@ class HexRule:
                 if match.group(2):
                     self.target_direction = int(match.group(2))
 
-    def _parse_condition(self, condition: str) -> None:
-        """Parse condition like '1x', '-a', 'y.', '1y4'."""
-        # Check for negation
+    def _parse_condition(self, condition: str) -> Condition:
+        """Parse a single condition token."""
+        negated = False
         if condition.startswith("-"):
-            self.condition_negated = True
+            negated = True
             condition = condition[1:]
 
-        # Check for pointing marker
-        if condition.endswith("."):
-            self.condition_pointing = True
-            condition = condition[:-1]
-        elif condition.endswith("%"):
-            self.condition_random_dir = True
+        random_dir = False
+        if condition.endswith("%"):
+            random_dir = True
             condition = condition[:-1]
 
-        # Parse direction and state
         match = re.match(r"(\d+)?([a-z_]+)(\d+)?", condition)
+        direction: Optional[int] = None
+        state = ""
+        pointing_direction: Optional[int] = None
         if match:
             if match.group(1):
-                self.condition_direction = int(match.group(1))
-            self.condition_state = match.group(2)
+                direction = int(match.group(1))
+            state = match.group(2)
             if match.group(3):
-                # Neighbor has specific pointing direction (like 1t4 - t points to direction 4)
-                self.condition_pointing_direction = int(match.group(3))
+                pointing_direction = int(match.group(3))
+        return Condition(
+            state=state,
+            direction=direction,
+            pointing_direction=pointing_direction,
+            negated=negated,
+            random_dir=random_dir,
+        )
 
 
 class HexAutomaton:
@@ -269,66 +296,57 @@ class HexAutomaton:
         return [(q + dq, r + dr) for dq, dr in directions]
 
     def matches_condition(self, cell: HexCell, q: int, r: int, rule: HexRule) -> bool:
-        """Check if a cell matches the rule's condition."""
-        if not rule.condition_state:
-            return True  # No condition
+        """Check if a cell matches the rule's condition groups."""
+        if not rule.conditions:
+            return True
 
         neighbors = self.get_neighbors(q, r)
+        neighbor_cells = [self.get_cell(*pos) for pos in neighbors]
 
-        if rule.condition_direction is not None:
-            # Check specific direction
-            direction_idx = rule.condition_direction - 1
-            if 0 <= direction_idx < len(neighbors):
-                neighbor_pos = neighbors[direction_idx]
-                neighbor_cell = self.get_cell(*neighbor_pos)
+        def condition_matches(ncell: HexCell, cond: Condition) -> bool:
+            state_ok = ncell.state == cond.state
+            if cond.pointing_direction is not None:
+                state_ok = state_ok and ncell.direction == cond.pointing_direction
+            return not state_ok if cond.negated else state_ok
 
-                # Check if neighbor has the required state
-                state_matches = neighbor_cell.state == rule.condition_state
+        used: Set[int] = set()
 
-                # If the condition specifies a pointing direction, check it
-                if rule.condition_pointing_direction is not None:
-                    # The neighbor must point in the specified direction
-                    pointing_matches = (
-                        neighbor_cell.direction == rule.condition_pointing_direction
-                    )
-                    if rule.condition_negated:
-                        return not (state_matches and pointing_matches)
-                    else:
-                        return state_matches and pointing_matches
-                else:
-                    # No pointing direction specified, just check state
-                    if rule.condition_negated:
-                        return not state_matches
-                    else:
-                        return state_matches
-            # If the specified direction is out of range, treat as missing neighbor
-            # For a negated condition, missing neighbor satisfies the negation; otherwise, it fails
-            return rule.condition_negated
-        else:
-            # Check any neighbor
-            for neighbor_pos in neighbors:
-                neighbor_cell = self.get_cell(*neighbor_pos)
-                state_matches = neighbor_cell.state == rule.condition_state
-
-                if rule.condition_pointing_direction is not None:
-                    # The neighbor must point in the specified direction
-                    pointing_matches = (
-                        neighbor_cell.direction == rule.condition_pointing_direction
-                    )
-                    if state_matches and pointing_matches:
-                        if rule.condition_negated:
-                            return False
+        def backtrack(index: int) -> bool:
+            if index == len(rule.conditions):
+                return True
+            group = rule.conditions[index]
+            for option in group:
+                if option.direction is not None:
+                    idx = option.direction - 1
+                    if idx in used and not option.negated:
+                        continue
+                    ncell = neighbor_cells[idx]
+                    if condition_matches(ncell, option):
+                        if option.negated:
+                            if backtrack(index + 1):
+                                return True
                         else:
-                            return True
+                            used.add(idx)
+                            if backtrack(index + 1):
+                                return True
+                            used.remove(idx)
                 else:
-                    # No pointing direction specified, just check state
-                    if state_matches:
-                        if rule.condition_negated:
-                            return False
-                        else:
-                            return True
+                    if option.negated:
+                        if all(condition_matches(nc, option) for nc in neighbor_cells):
+                            if backtrack(index + 1):
+                                return True
+                    else:
+                        for idx, ncell in enumerate(neighbor_cells):
+                            if idx in used:
+                                continue
+                            if condition_matches(ncell, option):
+                                used.add(idx)
+                                if backtrack(index + 1):
+                                    return True
+                                used.remove(idx)
+            return False
 
-            return rule.condition_negated
+        return backtrack(0)
 
     def apply_rule(
         self, cell: HexCell, q: int, r: int, rule: HexRule

@@ -195,6 +195,47 @@ class TestHexRules(unittest.TestCase):
         self.assertEqual(self.automaton.get_cell(1, 0).state, "b")
         self.assertEqual(self.automaton.get_cell(1, 1).state, "b")
 
+    def test_multi_condition_parsing(self) -> None:
+        """Rules may contain multiple condition blocks and OR expressions."""
+        rule = HexRule("a[b][c] => d")
+        self.assertEqual(len(rule.conditions), 2)
+        self.assertEqual(rule.conditions[0][0].state, "b")
+        self.assertEqual(rule.conditions[1][0].state, "c")
+
+        rule_or = HexRule("a[b|c] => d")
+        self.assertEqual(len(rule_or.conditions), 1)
+        states = {opt.state for opt in rule_or.conditions[0]}
+        self.assertEqual(states, {"b", "c"})
+
+    def test_multi_condition_application(self) -> None:
+        """Rule requires two specific neighbors and supports OR."""
+        self.automaton.clear()
+        self.automaton.set_rules(["a[b][c] => d"])
+        self.automaton.set_cell(0, 0, "a")
+        self.automaton.set_cell(1, 0, "b")
+        self.automaton.set_cell(0, 1, "c")
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "d")
+
+        self.automaton.clear()
+        self.automaton.set_rules(["a[b|c] => d"])
+        self.automaton.set_cell(0, 0, "a")
+        self.automaton.set_cell(1, 0, "c")
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "d")
+
+    def test_multi_condition_requires_distinct_neighbors(self) -> None:
+        """Repeated conditions consume distinct neighbor slots."""
+        self.automaton.clear()
+        self.automaton.set_rules(["a[b][b] => d"])
+        self.automaton.set_cell(0, 0, "a")
+        self.automaton.set_cell(1, 0, "b")
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "a")
+        self.automaton.set_cell(0, 1, "b")
+        self.automaton.step()
+        self.assertEqual(self.automaton.get_cell(0, 0).state, "d")
+
 
 if __name__ == "__main__":
     unittest.main()
