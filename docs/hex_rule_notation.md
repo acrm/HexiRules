@@ -34,16 +34,18 @@ It describes how a cell changes state (and optionally direction) based on its ow
 - `a[1x] => b` — Change from `a` to `b` if the neighbor in the position 1 has state `x`
 - `a[1x3] => b` — Change from `a` to `b` if the neighbor in the position 1 has state `x3` (x with direction 3)  
 - `x% => y%` — Change from `x` to `y` in the same (random) direction
-- `x% => y%5` — Change from `x` to `y`, rotate direction by 5 steps clockwise
+- `x% => y%5` — Change from `x` to `y`, rotate direction by 5 steps clockwise (if source has no direction, target remains directionless)
 - `x[1-a] => b` — Change from `x` to `b` if direction 1 does not contain state `a`
 - `x[y.] => z` — Change from `x` to `z` if any neighbor in state `y` is pointing at the center
 - `x[y.] => z.5` — Same as above, but `z` gains direction 5 clockwise from incoming neighbor
+- `patternA | patternB => t` — Top-level OR on source: applies if either whole source pattern matches (expands into separate rules)
 
 ## 3. Formal Syntax (EBNF)
 
 ```
 rule             = source "=>" target ;
-source           = state [ direction ] [ condition_block ] ;
+source           = source_pattern { "|" source_pattern } ;   (* top-level OR across full source patterns *)
+source_pattern   = state [ direction ] { condition_block } ;  (* multiple condition blocks = AND *)
 target           = state [ direction ]
                  | state "%" [ rotation ] ;
 
@@ -51,7 +53,7 @@ state            = identifier ;
 direction        = integer ;           (* 1–6 *)
 rotation         = integer ;           (* 0–5 *)
 
-condition_block  = "[" condition "]" ;
+condition_block  = "[" condition { "|" condition } "]" ;   (* OR within the same block *)
 condition        = [ direction_index ] [ "-" ] state [ orientation_marker ] ;
 direction_index  = integer ;           (* 1–6 *)
 orientation_marker = "." | integer | "%" ;  (* direction of neighbor: to center, exact, or random *)
@@ -70,6 +72,12 @@ letter           = "a".."z" ;
 - `%` implies random direction (macro-expanded)
 - `.` in condition means neighbor points toward center
 - `-` means absence of the state in specified direction
+- Source-direction matching:
+  - `a` matches only cells without a direction (directionless)
+  - `a%` matches cells in state `a` with any specified direction (1–6)
+  - `aN` matches cells in state `a` with direction exactly `N`
+- Rotation targets:
+  - `y%k` rotates relative to the source cell’s direction if present; otherwise target remains directionless
 
 ## 5. Macro Expansions
 
@@ -77,10 +85,13 @@ letter           = "a".."z" ;
 - `x[y.]` expands to: `x[1y4] x[2y5] x[3y6] x[4y1] x[5y2] x[6y3]`
 - `y%5` means rotate y's direction 5 steps clockwise from source direction
 - `z.5` means `z` takes direction 5 steps clockwise from incoming direction
+- Top-level OR in source is expanded into separate rules: `A | B => T` becomes `A => T` and `B => T`
 
 ## 6. Constraints
 
-- Only one condition allowed per rule (no `,` support)
+- Multiple condition blocks are allowed; blocks are combined with AND
+- Inside a single `[...]` block, `|` separates OR alternatives
+- Top-level `|` is supported across full source patterns; target side does not support top-level OR
 - Digits are not allowed in state names
 - Rules are string-based and must be expanded before matching
 - All direction math is modulo 6 (1-based): `(d + n - 1) % 6 + 1`
