@@ -183,7 +183,10 @@ class HexAutomaton:
     def set_rules(self, rule_strings: List[str]) -> None:
         """Set the rules for the automaton."""
         self.rules = []
+        processed: List[str] = []
         for rule_str in rule_strings:
+            processed.extend(self._expand_presets(rule_str))
+        for rule_str in processed:
             try:
                 # Expand macros first
                 expanded_rules = self._expand_macros(rule_str)
@@ -197,6 +200,21 @@ class HexAutomaton:
                     print(
                         f"Warning: Skipping invalid expanded rule '{expanded_rule}': {e}"
                     )
+
+    @staticmethod
+    def _expand_presets(rule_str: str) -> List[str]:
+        """Return preset HexiDirect rules or passthrough."""
+        presets: Dict[str, List[str]] = {
+            "B3/S23": [
+                "_[a]3[_]3 => a",
+                "a[a]2[a|_][_]3 => a",
+                "a[_|a][_]5 | a[a]4[_|a][_|a] => _",
+            ]
+        }
+        key = rule_str.strip().upper()
+        if key in presets:
+            return presets[key]
+        return [rule_str]
 
     def _expand_macros(self, rule_str: str) -> List[str]:
         """Expand macro rules like 'x%' and '[y.]' into individual rules."""
@@ -213,6 +231,16 @@ class HexAutomaton:
             # Guard: if source is missing state and starts with a condition block, assume directionless '_'
             if source_part.startswith("["):
                 source_part = "_" + source_part
+
+            def expand_repeats(src: str) -> str:
+                def repl(m: Match[str]) -> str:
+                    block = m.group(1)
+                    count = int(m.group(2))
+                    return "".join(f"[{block}]" for _ in range(count))
+
+                return re.sub(r"\[([^\]]+)\](\d+)", repl, src)
+
+            source_part = expand_repeats(source_part)
 
             # First: expand top-level OR in the source, e.g.,
             #   "patternA | patternB => target" -> two separate rules

@@ -1,13 +1,9 @@
 import io
-import os
-import sys
+import io
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.cli import HexCLI
+from cli import HexCLI
+from hex_rules import HexAutomaton
 
 
 def run_cmd(cli: HexCLI, command: str) -> str:
@@ -20,25 +16,13 @@ def run_cmd(cli: HexCLI, command: str) -> str:
 class TestCLI(unittest.TestCase):
     def setUp(self) -> None:
         automaton = HexAutomaton(radius=3)
-        # Default HexiDirect B3/S23 equivalent rules
-        rules = [
-            "_[a][a][a][_][_][_] => a",
-            "a[a][a][_][_][_][_] | a[a][a][a][_][_][_] => a",
-            (
-                "a[_][_][_][_][_][_] | "
-                "a[a][_][_][_][_][_] | "
-                "a[a][a][a][a][_][_] | "
-                "a[a][a][a][a][a][_] | "
-                "a[a][a][a][a][a][a] => _"
-            ),
-        ]
-        automaton.set_rules(rules)
+        automaton.set_rules(["B3/S23"])
         self.cli = HexCLI(automaton, stdout=io.StringIO())
 
     def test_rule_management(self) -> None:
-        run_cmd(self.cli, "rule a => b")
+        run_cmd(self.cli, "rule _[a]3[_]3 => a")
         output = run_cmd(self.cli, "rules")
-        self.assertIn("a => b", output)
+        self.assertIn("_[a][a][a][_][_][_] => a", output)
 
     def test_cell_operations_and_summary(self) -> None:
         run_cmd(self.cli, "set 0 0 1")
@@ -66,7 +50,7 @@ class TestCLI(unittest.TestCase):
         run_cmd(cli, "rule a%=>_")
         rules_output = run_cmd(cli, "rules")
         self.assertIn("a1 => _", rules_output)
-        run_cmd(cli, "set 0 0 1")
+        run_cmd(cli, "set 0 0 a1")
         self.assertEqual("1", run_cmd(cli, "query 0 0"))
         run_cmd(cli, "step")
         self.assertEqual("0", run_cmd(cli, "query 0 0"))

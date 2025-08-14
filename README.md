@@ -11,8 +11,8 @@ A hexagonal cellular automaton simulator with an interactive GUI, supporting bot
 
 - Hexagonal grid with 6 neighbors per cell
 - Dual rule engines:
-	- Conway-style totalistic rules: `B../S..`
-	- HexiDirect symbolic rules with directions, macros (%), conditions `[ ... ]`, negation, and pointing shorthand
+        - Conway-style totalistic rules: `B../S..`
+        - HexiDirect symbolic rules with directions, macros (%), conditions `[ ... ]`, negation, pointing shorthand, repetition `[state]N`, and alternatives `[a|_]`
 - Interactive GUI (Tkinter):
 	- Stacked left panels (Worlds, Cells, Rules, Run, Log) + responsive canvas that scales to fill the window
 	- Per-world radius, mode (Conway/HexiDirect), JSON save/load
@@ -50,8 +50,8 @@ python tools/check_quality.py
 1. Pick or create a World (left panel). Each world has its own radius, mode, and rules.
 2. Choose Mode in Rules panel: Conway or HexiDirect (default).
 3. Edit rules:
-	- Conway: `B3/S23`
-	- HexiDirect: multi-line symbolic rules like `t[-a] => t%`, `_[t.] => a`, `t%[a] => t`
+        - Conway: `B3/S23`
+        - HexiDirect: multi-line symbolic rules like `t[-a] => t%`, `_[t.] => a`, `t%[a] => t`, `_[a]3[_]3 => a`
 4. Edit cells in the canvas:
 	- HexiDirect: Left=cycle state; Right=cycle direction (1..6,None); Middle=clear
 	- Conway: Left toggles alive/dead

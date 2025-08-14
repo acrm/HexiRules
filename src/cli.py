@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import cmd
+import re
 from typing import Iterable, Sequence
 
 from hex_rules import HexAutomaton
@@ -48,7 +49,9 @@ class HexCLI(cmd.Cmd):
         """rule [RULE] - set or show the current HexiDirect rules."""
         rule = arg.strip()
         if rule:
-            rules = [r.strip() for r in rule.replace(";", "\n").split("\n") if r.strip()]
+            rules = [
+                r.strip() for r in rule.replace(";", "\n").split("\n") if r.strip()
+            ]
             self.automaton.set_rules(rules)
             print("Rules set.", file=self.stdout)
         else:
@@ -73,7 +76,13 @@ class HexCLI(cmd.Cmd):
             state = "a"
         if state == "0":
             state = "_"
-        self.automaton.set_cell(int(q), int(r), state)
+        direction = None
+        match = re.match(r"([a-z_]+)(\d+)?", state)
+        if match:
+            state = match.group(1)
+            if match.group(2):
+                direction = int(match.group(2))
+        self.automaton.set_cell(int(q), int(r), state, direction)
         print(f"Cell {q} {r} set to {state}", file=self.stdout)
 
     def do_toggle(self, arg: str) -> None:
@@ -100,7 +109,9 @@ class HexCLI(cmd.Cmd):
 
     def do_summary(self, arg: str) -> None:  # noqa: D401 - simple wrapper
         """summary - show number of non-empty cells."""
-        print(f"Alive cells: {len(self.automaton.get_active_cells())}", file=self.stdout)
+        print(
+            f"Alive cells: {len(self.automaton.get_active_cells())}", file=self.stdout
+        )
 
     def do_cells(self, arg: str) -> None:  # noqa: D401 - simple wrapper
         """cells - list coordinates of non-empty cells."""
@@ -137,18 +148,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description=f"HexiRules v{__version__} - Hexagonal Cellular Automaton CLI (HexiDirect)"
     )
-    # Default to directionless HexiDirect B3/S23 equivalent
-    default_rules = (
-        "_[a][a][a][_][_][_] => a; "
-        "a[a][a][_][_][_][_] | a[a][a][a][_][_][_] => a; "
-        "a[_][_][_][_][_][_] | a[a][_][_][_][_][_] | a[a][a][a][a][_][_] | a[a][a][a][a][a][_] | a[a][a][a][a][a][a] => _"
+    # Default to B3/S23 via preset
+    parser.add_argument(
+        "--rule",
+        default="B3/S23",
+        help="HexiDirect rules (use ';' or newlines to separate)",
     )
-    parser.add_argument("--rule", default=default_rules, help="HexiDirect rules (use ';' or newlines to separate)")
     parser.add_argument("--radius", type=int, default=3, help="Grid radius")
     args = parser.parse_args(argv)
 
     automaton = HexAutomaton(radius=args.radius)
-    rules = [r.strip() for r in str(args.rule).replace(";", "\n").split("\n") if r.strip()]
+    rules = [
+        r.strip() for r in str(args.rule).replace(";", "\n").split("\n") if r.strip()
+    ]
     if rules:
         automaton.set_rules(rules)
     HexCLI(automaton).cmdloop()
