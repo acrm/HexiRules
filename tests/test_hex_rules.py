@@ -236,6 +236,11 @@ class TestHexRules(unittest.TestCase):
         self.automaton.step()
         self.assertEqual(self.automaton.get_cell(0, 0).state, "d")
 
+    def test_repetition_syntax(self) -> None:
+        """[state]N repeats the condition block N times."""
+        rules = self.automaton._expand_macros("_[a]3[_]3 => a")
+        self.assertEqual(rules, ["_[a][a][a][_][_][_] => a"])
+
 
 if __name__ == "__main__":
     unittest.main()

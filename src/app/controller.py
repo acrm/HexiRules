@@ -18,7 +18,9 @@ class HexiController:
         self.current_world: Optional[str] = None
 
     # Worlds
-    def create_world(self, name: str, radius: int, _is_hex: bool, rules_text: str) -> None:
+    def create_world(
+        self, name: str, radius: int, _is_hex: bool, rules_text: str
+    ) -> None:
         # _is_hex is ignored for backward compatibility; HexiDirect-only now.
         world: Dict[str, Any] = {
             "name": name,
@@ -51,7 +53,9 @@ class HexiController:
         return w["hex"]
 
     # Persistence
-    def save_world_to_file(self, path: str, is_hexidirect: bool, rules_text: str) -> None:
+    def save_world_to_file(
+        self, path: str, is_hexidirect: bool, rules_text: str
+    ) -> None:
         world = self.get_current_world()
         world["rules_text"] = rules_text
         data: Dict[str, Any] = {
@@ -139,13 +143,14 @@ class HexiController:
             checked_count = 0
             match_count = 0
             hex_world = w["hex"]
-            prev_active_set = {pos for pos, cell in hex_world.grid.items() if cell.state != "_"}
+            prev_active_set = {
+                pos for pos, cell in hex_world.grid.items() if cell.state != "_"
+            }
             for (q, r), cell in hex_world.grid.items():
                 for rule in hex_world.rules:
                     checked_count += 1
-                    if (
-                        rule.source_state == cell.state
-                        and hex_world.matches_condition(cell, q, r, rule)
+                    if rule.source_state == cell.state and hex_world.matches_condition(
+                        cell, q, r, rule
                     ):
                         match_count += 1
             logs.append(
@@ -166,7 +171,9 @@ class HexiController:
             if len(new_active) > 10:
                 logs.append(f"  ... and {len(new_active) - 10} more")
             # Delta summary (HexiDirect)
-            new_active_set = {pos for pos, cell in w["hex"].grid.items() if cell.state != "_"}
+            new_active_set = {
+                pos for pos, cell in w["hex"].grid.items() if cell.state != "_"
+            }
             births = new_active_set - prev_active_set
             survivals = new_active_set & prev_active_set
             deaths = prev_active_set - new_active_set

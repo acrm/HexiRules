@@ -1,25 +1,15 @@
 import unittest
 
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.hex_rules import HexAutomaton
+import unittest
+
+from hex_rules import HexAutomaton
 
 
 # Directionless HexiDirect rules implementing Conway B3/S23 on a hex grid
 HEXIDIRECT_B3_S23 = [
-    # Birth: exactly 3 neighbors alive
-    "_[a][a][a][_][_][_] => a",
-    # Survival: 2 or 3 neighbors alive
-    "a[a][a][_][_][_][_] | a[a][a][a][_][_][_] => a",
-    # Death: 0, 1, 4, 5, or 6 neighbors alive
-    (
-        "a[_][_][_][_][_][_] | "
-        "a[a][_][_][_][_][_] | "
-        "a[a][a][a][a][_][_] | "
-        "a[a][a][a][a][a][_] | "
-        "a[a][a][a][a][a][a] => _"
-    ),
+    "_[a]3[_]3 => a",
+    "a[a]2[a|_][_]3 => a",
+    "a[_|a][_]5 | a[a]4[_|a][_|a] => _",
 ]
 
 

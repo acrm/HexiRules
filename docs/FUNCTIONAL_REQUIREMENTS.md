@@ -23,6 +23,7 @@
 - The system shall evaluate rule conditions against the six neighbors in clockwise order.
 - The system shall process rules in two substeps: `select_applicable_rules` gathers all matching rules for each cell, and `apply_random_rules` randomly selects one rule to apply to each cell.
 - The system shall apply at most one resulting transformation per cell per step.
+- The system shall support bracket repetition `[state]N` and in-bracket alternatives such as `[a|_]`.
 ## Graphical User Interface
 - The system shall provide a graphical user interface.
 - The system shall present stacked control sections: Worlds, Cells, Rules, Run, and Log.

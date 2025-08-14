@@ -30,11 +30,13 @@ It describes how a cell changes state (and optionally direction) based on its ow
 ### Examples
 
 - `a => b` — Unconditional change from `a` to `b`
-- `a[x] => b` — Change from `a` to `b` if any neighbor has state `x` 
+- `a[x] => b` — Change from `a` to `b` if any neighbor has state `x`
 - `a[1x] => b` — Change from `a` to `b` if the neighbor in the position 1 has state `x`
-- `a[1x3] => b` — Change from `a` to `b` if the neighbor in the position 1 has state `x3` (x with direction 3)  
+- `a[1x3] => b` — Change from `a` to `b` if the neighbor in the position 1 has state `x3` (x with direction 3)
 - `x% => y%` — Change from `x` to `y` in the same (random) direction
 - `x% => y%5` — Change from `x` to `y`, rotate direction by 5 steps clockwise (if source has no direction, target remains directionless)
+- `_ [a]3 [_]3 => a` — Birth on exactly three `a` neighbors (repetition shorthand)
+- `a[a]2[a|_][_]3 => a` — Survival on two or three `a` neighbors
 - `x[1-a] => b` — Change from `x` to `b` if direction 1 does not contain state `a`
 - `x[y.] => z` — Change from `x` to `z` if any neighbor in state `y` is pointing at the center
 - `x[y.] => z.5` — Same as above, but `z` gains direction 5 clockwise from incoming neighbor
@@ -53,7 +55,8 @@ state            = identifier ;
 direction        = integer ;           (* 1–6 *)
 rotation         = integer ;           (* 0–5 *)
 
-condition_block  = "[" condition { "|" condition } "]" ;   (* OR within the same block *)
+condition_block  = "[" condition { "|" condition } "]" [ repeat ] ;   (* OR within block, optional repeat count *)
+repeat           = integer ;
 condition        = [ direction_index ] [ "-" ] state [ orientation_marker ] ;
 direction_index  = integer ;           (* 1–6 *)
 orientation_marker = "." | integer | "%" ;  (* direction of neighbor: to center, exact, or random *)
@@ -85,6 +88,7 @@ letter           = "a".."z" ;
 - `x[y.]` expands to: `x[1y4] x[2y5] x[3y6] x[4y1] x[5y2] x[6y3]`
 - `y%5` means rotate y's direction 5 steps clockwise from source direction
 - `z.5` means `z` takes direction 5 steps clockwise from incoming direction
+- `[s]n` repeats `[s]` n times; e.g., `_ [a]3 [_]3` expands to `_ [a][a][a][_][_][_]`
 - Top-level OR in source is expanded into separate rules: `A | B => T` becomes `A => T` and `B => T`
 
 ## 6. Constraints
