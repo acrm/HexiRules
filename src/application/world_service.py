@@ -127,6 +127,17 @@ class WorldService:
         if w.history_index < len(w.history):
             self.history_go(w.history_index)
 
+    def history_current_index(self) -> int:
+        """Return the index of the currently active snapshot (selection).
+        Internally, history_index points to the next insertion position, so the
+        current selection is history_index - 1 clamped into [0, len-1].
+        """
+        w = self.get_current_world()
+        if not w.history:
+            return -1
+        idx = max(0, min(len(w.history) - 1, w.history_index - 1))
+        return idx
+
     # Internal state persistence
     def _load_last_state(self) -> None:
         try:

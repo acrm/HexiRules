@@ -481,6 +481,19 @@ class HexiRulesGUI:
             self.history_list.insert(tk.END, f"Step {idx}: {cnt} cells")
         if hasattr(self, "history_log"):
             self.history_log.delete("1.0", tk.END)
+        # Ensure a selection is always present
+        try:
+            cur = self.controller.history_current_index()
+            if cur >= 0 and self.history_list.size() > 0:
+                self.history_list.selection_clear(0, tk.END)
+                self.history_list.selection_set(cur)
+                self.history_list.see(cur)
+                # populate logs for the selected step
+                logs = self.controller.history_get_logs(cur)
+                if hasattr(self, "history_log"):
+                    self.history_log.insert("1.0", "\n".join(logs))
+        except Exception:
+            pass
 
     def on_history_select(self, _event: Any) -> None:
         sel = self.history_list.curselection()
@@ -495,10 +508,12 @@ class HexiRulesGUI:
 
     def on_history_prev(self) -> None:
         self.controller.history_prev()
+        self._refresh_history()
         self.update_display()
 
     def on_history_next(self) -> None:
         self.controller.history_next()
+        self._refresh_history()
         self.update_display()
 
     def rename_world(self) -> None:
