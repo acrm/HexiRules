@@ -5,8 +5,9 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from automaton import Automaton
-from cli import HexCLI
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.cli import HexCLI
 
 
 def run_cmd(cli: HexCLI, command: str) -> str:
@@ -18,13 +19,26 @@ def run_cmd(cli: HexCLI, command: str) -> str:
 
 class TestCLI(unittest.TestCase):
     def setUp(self) -> None:
-        automaton = Automaton(radius=3, rule="B3/S23")
+        automaton = HexAutomaton(radius=3)
+        # Default HexiDirect B3/S23 equivalent rules
+        rules = [
+            "_[a][a][a][_][_][_] => a",
+            "a[a][a][_][_][_][_] | a[a][a][a][_][_][_] => a",
+            (
+                "a[_][_][_][_][_][_] | "
+                "a[a][_][_][_][_][_] | "
+                "a[a][a][a][a][_][_] | "
+                "a[a][a][a][a][a][_] | "
+                "a[a][a][a][a][a][a] => _"
+            ),
+        ]
+        automaton.set_rules(rules)
         self.cli = HexCLI(automaton, stdout=io.StringIO())
 
     def test_rule_management(self) -> None:
-        run_cmd(self.cli, "rule B2/S3")
+        run_cmd(self.cli, "rule a => b")
         output = run_cmd(self.cli, "rules")
-        self.assertIn("B2/S3", output)
+        self.assertIn("a => b", output)
 
     def test_cell_operations_and_summary(self) -> None:
         run_cmd(self.cli, "set 0 0 1")
@@ -40,13 +54,16 @@ class TestCLI(unittest.TestCase):
         self.assertIn("●", grid_output)
 
     def test_step_progression(self) -> None:
+        # Using a simple rule to clear any 'a' cell
+        run_cmd(self.cli, "rule a => _")
         run_cmd(self.cli, "set 0 0 1")
         run_cmd(self.cli, "step")
         summary_output = run_cmd(self.cli, "summary")
         self.assertIn("0", summary_output)
 
     def test_hex_rule_mode(self) -> None:
-        cli = HexCLI(Automaton(radius=3, rule="a%=>_"), stdout=io.StringIO())
+        cli = HexCLI(HexAutomaton(radius=3), stdout=io.StringIO())
+        run_cmd(cli, "rule a%=>_")
         rules_output = run_cmd(cli, "rules")
         self.assertIn("a1 => _", rules_output)
         run_cmd(cli, "set 0 0 1")

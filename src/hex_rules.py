@@ -187,10 +187,16 @@ class HexAutomaton:
             try:
                 # Expand macros first
                 expanded_rules = self._expand_macros(rule_str)
-                for expanded_rule in expanded_rules:
-                    self.rules.append(HexRule(expanded_rule))
             except ValueError as e:
                 print(f"Warning: Skipping invalid rule '{rule_str}': {e}")
+                continue
+            for expanded_rule in expanded_rules:
+                try:
+                    self.rules.append(HexRule(expanded_rule))
+                except ValueError as e:
+                    print(
+                        f"Warning: Skipping invalid expanded rule '{expanded_rule}': {e}"
+                    )
 
     def _expand_macros(self, rule_str: str) -> List[str]:
         """Expand macro rules like 'x%' and '[y.]' into individual rules."""
@@ -201,13 +207,53 @@ class HexAutomaton:
             source_part = source_part.strip()
             target_part = target_part.strip()
 
+            # Normalize empty neighbor slots: replace [] with [_]
+            # This helps users who type blank brackets to represent empty cells.
+            source_part = source_part.replace("[]", "[_]")
+            # Guard: if source is missing state and starts with a condition block, assume directionless '_'
+            if source_part.startswith("["):
+                source_part = "_" + source_part
+
+            # First: expand top-level OR in the source, e.g.,
+            #   "patternA | patternB => target" -> two separate rules
+            # We must ignore '|' inside condition brackets [...].
+            def split_top_level_or(src: str) -> List[str]:
+                parts: List[str] = []
+                buf: List[str] = []
+                depth = 0
+                i = 0
+                while i < len(src):
+                    ch = src[i]
+                    if ch == "[":
+                        depth += 1
+                        buf.append(ch)
+                    elif ch == "]":
+                        depth = max(0, depth - 1)
+                        buf.append(ch)
+                    elif ch == "|" and depth == 0:
+                        parts.append("".join(buf).strip())
+                        buf = []
+                    else:
+                        buf.append(ch)
+                    i += 1
+                if buf:
+                    parts.append("".join(buf).strip())
+                # Filter out empty segments if any accidental doubles
+                return [p for p in parts if p]
+
+            src_options = split_top_level_or(source_part)
+            if len(src_options) > 1:
+                rules = [f"{opt} => {target_part}" for opt in src_options]
+            else:
+                rules = [f"{source_part} => {target_part}"]
+
             # Expand source % (any specified direction; do not include directionless)
-            if re.search(r"([a-z_]+)%", source_part):
-                # If both source and target have %, keep as-is for now
-                if re.search(r"([a-z_]+)%", target_part):
-                    pass
-                else:
-                    expanded_src: List[str] = []
+            expanded_src: List[str] = []
+            for base in rules:
+                base_src, base_tgt = [p.strip() for p in base.split("=>", 1)]
+                if re.search(r"([a-z_]+)%", base_src) and not re.search(
+                    r"([a-z_]+)%", base_tgt
+                ):
                     for direction in range(1, 7):
 
                         def _repl(m: Match[str], d: int = direction) -> str:
@@ -216,10 +262,12 @@ class HexAutomaton:
                         new_source = re.sub(
                             r"([a-z_]+)%",
                             _repl,
-                            source_part,
+                            base_src,
                         )
-                        expanded_src.append(f"{new_source} => {target_part}")
-                    rules = expanded_src
+                        expanded_src.append(f"{new_source} => {base_tgt}")
+                else:
+                    expanded_src.append(base)
+            rules = expanded_src
 
         # Expand target at end
         final_rules: List[str] = []

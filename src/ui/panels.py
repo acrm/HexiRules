@@ -49,8 +49,7 @@ def build_cells_tab(frame: tk.Misc, on_clear, on_random) -> None:
         frame,
         text=(
             "Click on the grid to edit cells.\n"
-            "HexiDirect: Left=cycle state, Right=cycle direction, Middle=clear.\n"
-            "Conway: Left=toggle."
+            "HexiDirect: Left=cycle state, Right=cycle direction, Middle=clear."
         ),
         justify=tk.LEFT,
         wraplength=360,
@@ -73,21 +72,7 @@ def build_rules_tab(
     # Compact one-line mode switcher
     mode_frame = tk.Frame(frame)
     mode_frame.pack(fill=tk.X, padx=8, pady=4)
-    tk.Label(mode_frame, text="Mode:").pack(side=tk.LEFT)
-    tk.Radiobutton(
-        mode_frame,
-        text="Conway",
-        variable=is_hexidirect,
-        value=False,
-        command=on_mode_change,
-    ).pack(side=tk.LEFT, padx=(6, 0))
-    tk.Radiobutton(
-        mode_frame,
-        text="HexiDirect",
-        variable=is_hexidirect,
-        value=True,
-        command=on_mode_change,
-    ).pack(side=tk.LEFT, padx=(6, 0))
+    tk.Label(mode_frame, text="Mode: HexiDirect").pack(side=tk.LEFT)
 
     rules_frame = tk.LabelFrame(frame, text="Rules", padx=8, pady=5)
     rules_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)

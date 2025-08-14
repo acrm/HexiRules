@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-HexiRules GUI Module
+HexiRules GUI Module (HexiDirect-only)
 
-Unified GUI supporting both Conway-style totalistic rules and HexiDirect symbolic rules.
-Adds responsive scaling and multi-panel workflow: worlds, cells, rules, run, and log.
+Responsive multi-panel GUI: worlds, cells, rules, run, and log.
 """
 
 import tkinter as tk
@@ -12,7 +11,6 @@ from typing import Any, Dict, List, Tuple, Optional, cast
 import math
 import json
 import os
-from automaton import Automaton
 from hex_rules import HexAutomaton
 from app.controller import HexiController
 from ui import (
@@ -50,8 +48,8 @@ class HexiRulesGUI:
         self.root = tk.Tk()
         self.root.title("HexiRules - Hexagonal Cellular Automaton")
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-
         # GUI state
+        # HexiDirect-only (kept for API compatibility with builders)
         self.is_hexidirect = tk.BooleanVar(value=True)
         self.hex_items = {}
 
@@ -92,14 +90,11 @@ class HexiRulesGUI:
             return
         world = self.controller.select_world(name)
         # Sync UI
-        self.is_hexidirect.set(bool(world.get("is_hex", False)))
+        self.is_hexidirect.set(True)
         self.rule_text.delete("1.0", tk.END)
         self.rule_text.insert("1.0", world.get("rules_text", ""))
         # Sync rule label with current mode
-        if bool(world.get("is_hex", False)):
-            self.rule_label.config(text="Enter HexiDirect rules (e.g., a[b] => c):")
-        else:
-            self.rule_label.config(text="Enter Conway rules (e.g., B3/S23):")
+        self.rule_label.config(text="Enter HexiDirect rules (e.g., a[b] => c):")
         # Select in listbox
         if hasattr(self, "world_list"):
             try:
@@ -262,32 +257,26 @@ class HexiRulesGUI:
         )
 
         world = self._get_current_world()
-        if world.get("is_hex", False):
-            if state and state != "_":
-                label = f"{state}{direction}" if direction is not None else state
-                self.canvas.create_text(x, y, text=label, font=("Arial", 8, "bold"))
-            if direction is not None:
-                dot_distance = self.cell_size * 0.8
-                # Engine neighbor order is [(1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1)]
-                # which corresponds to angles 0°, 60°, 120°, 180°, 240°, 300°.
-                # Map direction 1 -> 0° and add 60° CCW per step.
-                angle_degrees = (direction - 1) * 60
-                ang = math.radians(angle_degrees)
-                dx = dot_distance * math.cos(ang)
-                dy = -dot_distance * math.sin(ang)
-                self.canvas.create_oval(
-                    x + dx - 3,
-                    y + dy - 3,
-                    x + dx + 3,
-                    y + dy + 3,
-                    fill="red",
-                    outline="darkred",
-                )
-        else:
-            if state == "1":
-                self.canvas.create_oval(
-                    x - 4, y - 4, x + 4, y + 4, fill="black", outline="black"
-                )
+        if state and state != "_":
+            label = f"{state}{direction}" if direction is not None else state
+            self.canvas.create_text(x, y, text=label, font=("Arial", 8, "bold"))
+        if direction is not None:
+            dot_distance = self.cell_size * 0.8
+            # Engine neighbor order is [(1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1)]
+            # which corresponds to angles 0°, 60°, 120°, 180°, 240°, 300°.
+            # Map direction 1 -> 0° and add 60° CCW per step.
+            angle_degrees = (direction - 1) * 60
+            ang = math.radians(angle_degrees)
+            dx = dot_distance * math.cos(ang)
+            dy = -dot_distance * math.sin(ang)
+            self.canvas.create_oval(
+                x + dx - 3,
+                y + dy - 3,
+                x + dx + 3,
+                y + dy + 3,
+                fill="red",
+                outline="darkred",
+            )
 
         return int(hex_id)
 
@@ -302,37 +291,25 @@ class HexiRulesGUI:
 
         world = self._get_current_world()
         R = int(world.get("radius", DEFAULT_RADIUS))
-        automaton = world["hex"] if world.get("is_hex", False) else world["conway"]
+        automaton = world["hex"]
 
         for q in range(-R, R + 1):
             for r in range(-R, R + 1):
                 if abs(q + r) <= R:
                     x, y = self.get_canvas_position(q, r)
-                    if world.get("is_hex", False):
-                        cell = automaton.get_cell(q, r)
-                        color = STATE_COLORS.get(cell.state, "gray")
-                        hex_id = self.draw_hex(x, y, color, cell.state, cell.direction)
-                    else:
-                        state = automaton.get_cell_state(q, r)
-                        color = "black" if state == "1" else "white"
-                        hex_id = self.draw_hex(x, y, color, state)
+                    cell = automaton.get_cell(q, r)
+                    color = STATE_COLORS.get(cell.state, "gray")
+                    hex_id = self.draw_hex(x, y, color, cell.state, cell.direction)
                     self.hex_items[(q, r)] = hex_id
 
         # Status
-        if world.get("is_hex", False):
-            active_cells = len(automaton.get_active_cells())
-        else:
-            active_cells = sum(
-                1
-                for q in range(-R, R + 1)
-                for r in range(-R, R + 1)
-                if abs(q + r) <= R and automaton.get_cell_state(q, r) == "1"
-            )
+        active_cells = len(automaton.get_active_cells())
+        mode_label = "HexiDirect"
         current_rules = self.rule_text.get("1.0", tk.END).strip().replace("\n", ", ")
         if len(current_rules) > 40:
             current_rules = current_rules[:37] + "..."
         self.status_label.config(
-            text=f"World: {world['name']} | Active: {active_cells} | Rules: {current_rules}"
+            text=f"World: {world['name']} | Mode: {mode_label} | Active: {active_cells} | Rules: {current_rules}"
         )
 
     # -------- World actions --------
@@ -358,11 +335,8 @@ class HexiRulesGUI:
             )
         except Exception:
             radius = DEFAULT_RADIUS
-        is_hex = messagebox.askyesno(
-            "Mode", "Use HexiDirect symbolic rules for this world?", parent=self.root
-        )
-        default_rules = "t[-a] => t%\n_[t.] => a\nt%[a] => t" if is_hex else "B3/S23"
-        self._create_world(name, radius, is_hex, default_rules)
+        default_rules = "t[-a] => t%\n_[t.] => a\nt%[a] => t"
+        self._create_world(name, radius, True, default_rules)
         self._select_world(name)
 
     def delete_world(self) -> None:
@@ -419,20 +393,15 @@ class HexiRulesGUI:
     @property
     def current_automaton(self):
         world = self._get_current_world()
-        return world["hex"] if world.get("is_hex", False) else world["conway"]
+        return world["hex"]
 
     def on_mode_change(self) -> None:
-        """Handle mode toggle between Conway and HexiDirect."""
+        """Handle mode toggle (deprecated; always HexiDirect)."""
         world = self._get_current_world()
-        world["is_hex"] = bool(self.is_hexidirect.get())
-        if world["is_hex"]:
-            self.rule_label.config(text="Enter HexiDirect rules (e.g., a[b] => c):")
-            if not self.rule_text.get("1.0", tk.END).strip():
-                self.rule_text.insert("1.0", "t[-a] => t%\n_[t.] => a\nt%[a] => t")
-        else:
-            self.rule_label.config(text="Enter Conway rules (e.g., B3/S23):")
-            if not self.rule_text.get("1.0", tk.END).strip():
-                self.rule_text.insert("1.0", "B3/S23")
+        self.is_hexidirect.set(True)
+        self.rule_label.config(text="Enter HexiDirect rules (e.g., a[b] => c):")
+        if not self.rule_text.get("1.0", tk.END).strip():
+            self.rule_text.insert("1.0", "t[-a] => t%\n_[t.] => a\nt%[a] => t")
         self.update_display()
 
     def on_left_click(self, event: Any) -> None:
@@ -440,24 +409,19 @@ class HexiRulesGUI:
         world = self._get_current_world()
         R = int(world.get("radius", DEFAULT_RADIUS))
         if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
-            if world.get("is_hex", False):
-                current_cell = world["hex"].get_cell(q, r)
-                current_state = current_cell.state
-                try:
-                    current_idx = SYMBOLIC_STATES.index(current_state)
-                    next_idx = (current_idx + 1) % len(SYMBOLIC_STATES)
-                except ValueError:
-                    next_idx = 1
-                new_state = SYMBOLIC_STATES[next_idx]
-                world["hex"].set_cell(q, r, new_state, current_cell.direction)
-            else:
-                world["conway"].toggle_cell(q, r)
+            current_cell = world["hex"].get_cell(q, r)
+            current_state = current_cell.state
+            try:
+                current_idx = SYMBOLIC_STATES.index(current_state)
+                next_idx = (current_idx + 1) % len(SYMBOLIC_STATES)
+            except ValueError:
+                next_idx = 1
+            new_state = SYMBOLIC_STATES[next_idx]
+            world["hex"].set_cell(q, r, new_state, current_cell.direction)
             self.update_display()
 
     def on_right_click(self, event: Any) -> None:
         world = self._get_current_world()
-        if not world.get("is_hex", False):
-            return
         q, r = self.get_hex_coordinates(event.x, event.y)
         R = int(world.get("radius", DEFAULT_RADIUS))
         if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
@@ -474,8 +438,6 @@ class HexiRulesGUI:
 
     def on_middle_click(self, event: Any) -> None:
         world = self._get_current_world()
-        if not world.get("is_hex", False):
-            return
         q, r = self.get_hex_coordinates(event.x, event.y)
         R = int(world.get("radius", DEFAULT_RADIUS))
         if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
