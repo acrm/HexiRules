@@ -12,7 +12,7 @@ import math
 import json
 import os
 from hex_rules import HexAutomaton
-from app.controller import HexiController
+from application.world_service import WorldService
 from ui import (
     build_world_tab,
     build_cells_tab,
@@ -59,7 +59,7 @@ class HexiRulesGUI:
         self.cell_size = 15.0
 
         # Worlds management delegated to controller
-        self.controller = HexiController()
+        self.controller = WorldService()
 
         self.create_widgets()
         self._init_default_world()
