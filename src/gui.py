@@ -19,6 +19,7 @@ from ui import (
     build_rules_tab,
     build_run_tab,
     build_log_tab,
+    build_history_panel,
 )
 
 # Configuration
@@ -92,7 +93,7 @@ class HexiRulesGUI:
         # Sync UI
         self.is_hexidirect.set(True)
         self.rule_text.delete("1.0", tk.END)
-        self.rule_text.insert("1.0", world.get("rules_text", ""))
+        self.rule_text.insert("1.0", getattr(world, "rules_text", ""))
         # Sync rule label with current mode
         self.rule_label.config(text="Enter HexiDirect rules (e.g., a[b] => c):")
         # Select in listbox
@@ -105,6 +106,7 @@ class HexiRulesGUI:
             except Exception:
                 pass
         self.update_display()
+        self._refresh_history()
 
     def _get_current_world(self) -> Dict[str, Any]:
         # Ask controller for current world
@@ -129,20 +131,22 @@ class HexiRulesGUI:
         self.create_grid_panel(main_frame)
 
     def create_controls_panel(self, parent) -> None:
-        """Create the controls panel on the left side (no tabs), with equal space per section."""
+        """Create the controls panel on the left; Worlds and Cells share the top row."""
         controls_frame = tk.Frame(parent, width=CONTROLS_WIDTH, bg="lightblue")
         controls_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
         controls_frame.pack_propagate(False)
 
-        # Use grid with custom weights (no uniform): Worlds=1, Cells=0, Rules=4, Run=0, Log=3
-        controls_frame.grid_rowconfigure(0, weight=1)
-        controls_frame.grid_rowconfigure(1, weight=0)
-        controls_frame.grid_rowconfigure(2, weight=4)
-        controls_frame.grid_rowconfigure(3, weight=0)
-        controls_frame.grid_rowconfigure(4, weight=3)
-        controls_frame.grid_columnconfigure(0, weight=1)
+        # Grid weights and minimum sizes for stable layout
+        # Rows: 0=Worlds+Cells (side-by-side), 1=History, 2=Rules, 3=Run
+        controls_frame.grid_rowconfigure(0, weight=2, minsize=160)
+        controls_frame.grid_rowconfigure(1, weight=3, minsize=160)
+        controls_frame.grid_rowconfigure(2, weight=3, minsize=160)
+        controls_frame.grid_rowconfigure(3, weight=0, minsize=60)
+        # Two columns for row 0 (Worlds left, Cells right). Others span both.
+        controls_frame.grid_columnconfigure(0, weight=2, minsize=220)
+        controls_frame.grid_columnconfigure(1, weight=1, minsize=180)
 
-        # Worlds section
+    # Worlds (left)
         world_section = tk.LabelFrame(controls_frame, text="Worlds", bg="lightblue")
         world_section.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self.world_list, self.world_info = build_world_tab(
@@ -152,33 +156,36 @@ class HexiRulesGUI:
             self.load_world,
             self.save_world,
             self.delete_world,
+            self.rename_world,
         )
 
-        # Cells section
+        # Cells (right of Worlds)
         cells_section = tk.LabelFrame(controls_frame, text="Cells", bg="lightblue")
-        cells_section.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        cells_section.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         build_cells_tab(cells_section, self.clear, self.randomize)
 
-        # Rules section
+        # Rules (full width, placed above History)
         rules_section = tk.LabelFrame(controls_frame, text="Rules", bg="lightblue")
-        rules_section.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
+        rules_section.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
         self.rule_label, self.rule_text = build_rules_tab(
             rules_section, self.is_hexidirect, self.on_mode_change
         )
         # Default rule
         self.rule_text.insert("1.0", "t[-a] => t%\n_[t.] => a\nt%[a] => t")
 
-        # Run section
-        run_section = tk.LabelFrame(controls_frame, text="Run", bg="lightblue")
-        run_section.grid(row=3, column=0, sticky="nsew", padx=4, pady=4)
-        self.status_label = build_run_tab(run_section, self.step)
+        # History (full width, now below Rules) with Progress button
+        history_section = tk.LabelFrame(controls_frame, text="History", bg="lightblue")
+        history_section.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
+        self.history_list, self.history_log = build_history_panel(
+            history_section,
+            self.on_history_select,
+            self.step,
+            self.on_history_prev,
+            self.on_history_next,
+        )
 
-        # Log section
-        log_section = tk.LabelFrame(controls_frame, text="Log", bg="lightblue")
-        log_section.grid(row=4, column=0, sticky="nsew", padx=4, pady=4)
-        self.log_text = build_log_tab(log_section, self.clear_log)
-
-    # removed per-module builders; now provided by ui.panels
+        # No global log text widget; Step Logs live in History panel now
+        self.log_text = None
 
     def create_grid_panel(self, parent) -> None:
         """Create the grid panel on the right side."""
@@ -204,7 +211,7 @@ class HexiRulesGUI:
     def _compute_layout(self) -> None:
         # Compute cell size to fit the grid for current world's radius
         world = self._get_current_world()
-        R = int(world.get("radius", DEFAULT_RADIUS))
+        R = int(getattr(world, "radius", DEFAULT_RADIUS))
         width = max(1, self.canvas.winfo_width())
         height = max(1, self.canvas.winfo_height())
         pad = 10
@@ -290,8 +297,8 @@ class HexiRulesGUI:
         self.hex_items.clear()
 
         world = self._get_current_world()
-        R = int(world.get("radius", DEFAULT_RADIUS))
-        automaton = world["hex"]
+        R = int(getattr(world, "radius", DEFAULT_RADIUS))
+        automaton = world.hex
 
         for q in range(-R, R + 1):
             for r in range(-R, R + 1):
@@ -302,15 +309,7 @@ class HexiRulesGUI:
                     hex_id = self.draw_hex(x, y, color, cell.state, cell.direction)
                     self.hex_items[(q, r)] = hex_id
 
-        # Status
-        active_cells = len(automaton.get_active_cells())
-        mode_label = "HexiDirect"
-        current_rules = self.rule_text.get("1.0", tk.END).strip().replace("\n", ", ")
-        if len(current_rules) > 40:
-            current_rules = current_rules[:37] + "..."
-        self.status_label.config(
-            text=f"World: {world['name']} | Mode: {mode_label} | Active: {active_cells} | Rules: {current_rules}"
-        )
+    # No global status bar; History panel holds per-step logs.
 
     # -------- World actions --------
     def on_world_select(self, _event: Any) -> None:
@@ -363,7 +362,7 @@ class HexiRulesGUI:
         path = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("HexiRules World", "*.json")],
-            initialfile=f"{world['name']}.json",
+            initialfile=f"{getattr(world, 'name', 'world')}.json",
         )
         if not path:
             return
@@ -386,6 +385,7 @@ class HexiRulesGUI:
                 self.world_list.insert(tk.END, name)
             self._select_world(name)
             self.log_message(f"Loaded world from {os.path.basename(path)}")
+            self._refresh_history()
         except Exception as e:
             self.log_message(f"Load failed: {e}")
 
@@ -393,7 +393,7 @@ class HexiRulesGUI:
     @property
     def current_automaton(self):
         world = self._get_current_world()
-        return world["hex"]
+        return world.hex
 
     def on_mode_change(self) -> None:
         """Handle mode toggle (deprecated; always HexiDirect)."""
@@ -407,9 +407,9 @@ class HexiRulesGUI:
     def on_left_click(self, event: Any) -> None:
         q, r = self.get_hex_coordinates(event.x, event.y)
         world = self._get_current_world()
-        R = int(world.get("radius", DEFAULT_RADIUS))
+        R = int(getattr(world, "radius", DEFAULT_RADIUS))
         if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
-            current_cell = world["hex"].get_cell(q, r)
+            current_cell = world.hex.get_cell(q, r)
             current_state = current_cell.state
             try:
                 current_idx = SYMBOLIC_STATES.index(current_state)
@@ -417,15 +417,15 @@ class HexiRulesGUI:
             except ValueError:
                 next_idx = 1
             new_state = SYMBOLIC_STATES[next_idx]
-            world["hex"].set_cell(q, r, new_state, current_cell.direction)
+            world.hex.set_cell(q, r, new_state, current_cell.direction)
             self.update_display()
 
     def on_right_click(self, event: Any) -> None:
         world = self._get_current_world()
         q, r = self.get_hex_coordinates(event.x, event.y)
-        R = int(world.get("radius", DEFAULT_RADIUS))
+        R = int(getattr(world, "radius", DEFAULT_RADIUS))
         if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
-            current_cell = world["hex"].get_cell(q, r)
+            current_cell = world.hex.get_cell(q, r)
             if current_cell.state != "_":
                 current_dir = current_cell.direction
                 new_dir = (
@@ -433,25 +433,29 @@ class HexiRulesGUI:
                     if current_dir is None
                     else (None if current_dir == 6 else current_dir + 1)
                 )
-                world["hex"].set_cell(q, r, current_cell.state, new_dir)
+                world.hex.set_cell(q, r, current_cell.state, new_dir)
                 self.update_display()
 
     def on_middle_click(self, event: Any) -> None:
         world = self._get_current_world()
         q, r = self.get_hex_coordinates(event.x, event.y)
-        R = int(world.get("radius", DEFAULT_RADIUS))
+        R = int(getattr(world, "radius", DEFAULT_RADIUS))
         if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
-            world["hex"].set_cell(q, r, "_")
+            world.hex.set_cell(q, r, "_")
             self.update_display()
 
     # -------- Logging and run --------
     def clear_log(self) -> None:
-        self.log_text.delete("1.0", tk.END)
+        # No global log; clear the History log area if present
+        if hasattr(self, "history_log") and self.history_log is not None:
+            self.history_log.delete("1.0", tk.END)
 
     def log_message(self, message: str) -> None:
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.see(tk.END)
-        self.root.update_idletasks()
+        # Route miscellaneous messages to the History log area if present
+        if hasattr(self, "history_log") and self.history_log is not None:
+            self.history_log.insert(tk.END, message + "\n")
+            self.history_log.see(tk.END)
+            self.root.update_idletasks()
 
     def step(self) -> None:
         rules_text = self.rule_text.get("1.0", tk.END).strip()
@@ -461,14 +465,69 @@ class HexiRulesGUI:
         for line in logs:
             self.log_message(line)
         self.update_display()
+        self._refresh_history()
+
+    # -------- History & rename helpers --------
+    def _refresh_history(self) -> None:
+        if not hasattr(self, "history_list"):
+            return
+        self.history_list.delete(0, tk.END)
+        steps = []
+        try:
+            steps = self.controller.history_list()
+        except Exception:
+            pass
+        for idx, cnt in steps:
+            self.history_list.insert(tk.END, f"Step {idx}: {cnt} cells")
+        if hasattr(self, "history_log"):
+            self.history_log.delete("1.0", tk.END)
+
+    def on_history_select(self, _event: Any) -> None:
+        sel = self.history_list.curselection()
+        if not sel:
+            return
+        index = sel[0]
+        logs = self.controller.history_get_logs(index)
+        self.history_log.delete("1.0", tk.END)
+        self.history_log.insert("1.0", "\n".join(logs))
+        self.controller.history_go(index)
+        self.update_display()
+
+    def on_history_prev(self) -> None:
+        self.controller.history_prev()
+        self.update_display()
+
+    def on_history_next(self) -> None:
+        self.controller.history_next()
+        self.update_display()
+
+    def rename_world(self) -> None:
+        sel = self.world_list.curselection()
+        if not sel:
+            return
+        old_name = self.world_list.get(sel[0])
+        new_name = simpledialog.askstring(
+            "Rename World", f"Enter new name for '{old_name}':", parent=self.root
+        )
+        if not new_name:
+            return
+        try:
+            self.controller.rename_world(old_name, new_name)
+        except Exception as e:
+            messagebox.showerror("Rename failed", str(e), parent=self.root)
+            return
+        self.world_list.delete(sel[0])
+        self.world_list.insert(sel[0], new_name)
+        self.world_list.selection_set(sel[0])
+        self._select_world(new_name)
 
     def log_rule_applications(self) -> None:
         self.log_message("Analyzing rule applications:")
         world = self._get_current_world()
         checked_count = 0
         match_count = 0
-        for (q, r), cell in world["hex"].grid.items():
-            for rule in world["hex"].rules:
+        for (q, r), cell in world.hex.grid.items():
+            for rule in world.hex.rules:
                 checked_count += 1
                 if rule.source_state == cell.state:
                     src_dir_ok = (
@@ -476,9 +535,9 @@ class HexiRulesGUI:
                         or (rule.source_direction is None and cell.direction is None)
                         or (rule.source_direction == cell.direction)
                     )
-                    if src_dir_ok and world["hex"].matches_condition(cell, q, r, rule):
+                    if src_dir_ok and world.hex.matches_condition(cell, q, r, rule):
                         match_count += 1
-                        result = world["hex"].apply_rule(cell, q, r, rule)
+                        result = world.hex.apply_rule(cell, q, r, rule)
                         if result and result != cell:
                             self.log_message(
                                 f"  Rule '{rule.rule_str}' applies to ({q},{r}):{cell} -> {result}"

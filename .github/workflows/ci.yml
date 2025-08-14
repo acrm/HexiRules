@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+  branches: [ main, develop ]
 
 jobs:
   test:
@@ -38,7 +38,23 @@ jobs:
 
     - name: Run type checking
       run: |
-        mypy src/automaton.py src/main.py
+        mypy src
+
+    - name: Python syntax check (src and tests)
+      run: |
+        python - <<'PY'
+        import sys, pathlib, py_compile
+        paths = [pathlib.Path('src'), pathlib.Path('tests')]
+        failed = False
+        for base in paths:
+            for p in base.rglob('*.py'):
+                try:
+                    py_compile.compile(str(p), doraise=True)
+                except Exception as e:
+                    print(f"Syntax error in {p}: {e}")
+                    failed = True
+        sys.exit(1 if failed else 0)
+        PY
         
     - name: Check code formatting
       run: |

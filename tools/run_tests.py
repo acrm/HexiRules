@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Iterator
 
 ROOT = Path(__file__).resolve().parent.parent
+# Ensure imports work for both 'from src.module' and 'from module'
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 

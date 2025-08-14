@@ -3,7 +3,7 @@ import tkinter as tk
 
 
 def build_world_tab(
-    frame: tk.Misc, on_select, on_new, on_load, on_save, on_delete
+    frame: tk.Misc, on_select, on_new, on_load, on_save, on_delete, on_rename=None
 ) -> Tuple[tk.Listbox, tk.Label]:
     # World list
     list_frame = tk.Frame(frame)
@@ -18,13 +18,21 @@ def build_world_tab(
     # Actions
     btns = tk.Frame(frame)
     btns.pack(fill=tk.X, padx=8, pady=6)
-    tk.Button(btns, text="New", command=on_new, bg="lightgreen").pack(
+    tk.Button(btns, text="New", width=10, command=on_new, bg="lightgreen").pack(
         side=tk.LEFT, padx=3
     )
-    tk.Button(btns, text="Load", command=on_load).pack(side=tk.LEFT, padx=3)
-    tk.Button(btns, text="Save", command=on_save).pack(side=tk.LEFT, padx=3)
-    tk.Button(btns, text="Delete", command=on_delete, bg="lightcoral").pack(
-        side=tk.RIGHT, padx=3
+    tk.Button(btns, text="Load", width=10, command=on_load).pack(
+        side=tk.LEFT, padx=3
+    )
+    tk.Button(btns, text="Save", width=10, command=on_save).pack(
+        side=tk.LEFT, padx=3
+    )
+    if on_rename is not None:
+        tk.Button(btns, text="Rename", width=10, command=on_rename).pack(
+            side=tk.LEFT, padx=3
+        )
+    tk.Button(btns, text="Delete", width=10, command=on_delete, bg="lightcoral").pack(
+        side=tk.LEFT, padx=3
     )
 
     # Info

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from typing import cast
 
@@ -9,6 +9,7 @@ from domain.hexidirect.rule_engine import HexAutomaton
 from domain.worlds.world import World
 from infrastructure.persistence.json_world_repository import JsonWorldRepository
 from domain.worlds.repository import WorldRepository
+from domain.worlds.history import StepSnapshot
 
 
 class WorldService:
@@ -18,6 +19,9 @@ class WorldService:
         self.repository: WorldRepository = repository or JsonWorldRepository()
         self.worlds: Dict[str, World] = {}
         self.current_world: Optional[str] = None
+        # app-level persistence (simple file near repo root)
+        self.state_file: Path = Path(".hexi_state.json")
+        self._load_last_state()
 
     # Worlds
     def create_world(
@@ -25,11 +29,18 @@ class WorldService:
     ) -> None:
         world = World(name=name, radius=radius, rules_text=rules_text)
         self.worlds[name] = world
+        # initialize history with initial state snapshot
+        world.history.clear()
+        world.history_index = 0
+        init_snap = world.snapshot(["Initial state created"])  # index 0
+        world.history.append(init_snap)
+        world.history_index = 1
 
     def select_world(self, name: str) -> World:
         if name not in self.worlds:
             raise KeyError(f"Unknown world: {name}")
         self.current_world = name
+        self._save_last_state()
         return self.worlds[name]
 
     def get_current_world(self) -> World:
@@ -47,13 +58,103 @@ class WorldService:
         world = self.get_current_world()
         world.rules_text = rules_text
         self.repository.save(world, Path(path))
+        # remember last opened world path
+        self._save_last_state(Path(path))
 
     def load_world_from_file(self, path: str) -> str:
         world = cast(World, self.repository.load(Path(path)))
         name = cast(str, world.name)
         self.worlds[name] = world
+        # initialize history if empty
+        if not world.history:
+            init_snap = world.snapshot(["Loaded world"])  # index 0
+            world.history = [init_snap]
+            world.history_index = 1
         self.select_world(name)
+        self._save_last_state(Path(path))
         return name
+
+    # Rename world
+    def rename_world(self, old_name: str, new_name: str) -> None:
+        if not new_name or new_name in self.worlds:
+            raise ValueError("Invalid or duplicate world name")
+        if old_name not in self.worlds:
+            raise KeyError(f"Unknown world: {old_name}")
+        world = self.worlds.pop(old_name)
+        world.rename(new_name)
+        self.worlds[new_name] = world
+        if self.current_world == old_name:
+            self.current_world = new_name
+        self._save_last_state()
+
+    # History APIs
+    def history_add(self, logs: List[str]) -> StepSnapshot:
+        w = self.get_current_world()
+        idx = w.history_index
+        snap = w.snapshot(logs, index=idx)
+        # If we're not at the end, truncate forward history
+        if idx < len(w.history):
+            w.history = w.history[: idx]
+        w.history.append(snap)
+        w.history_index = idx + 1
+        return snap
+
+    def history_list(self) -> List[Tuple[int, int]]:
+        """Return list of (index, active_count)."""
+        w = self.get_current_world()
+        return [(s.index, s.active_count) for s in w.history]
+
+    def history_get_logs(self, index: int) -> List[str]:
+        w = self.get_current_world()
+        return list(w.history[index].logs) if 0 <= index < len(w.history) else []
+
+    def history_go(self, index: int) -> None:
+        w = self.get_current_world()
+        if not (0 <= index < len(w.history)):
+            return
+        snap = w.history[index]
+        w.restore_snapshot(snap)
+        w.history_index = index + 1
+
+    def history_prev(self) -> None:
+        w = self.get_current_world()
+        target = max(0, w.history_index - 2)
+        if w.history:
+            self.history_go(target)
+
+    def history_next(self) -> None:
+        w = self.get_current_world()
+        if w.history_index < len(w.history):
+            self.history_go(w.history_index)
+
+    # Internal state persistence
+    def _load_last_state(self) -> None:
+        try:
+            if self.state_file.exists():
+                import json
+
+                data = json.loads(self.state_file.read_text(encoding="utf-8"))
+                last_path = data.get("last_path")
+                if last_path and Path(last_path).exists():
+                    try:
+                        name = self.load_world_from_file(last_path)
+                        self.select_world(name)
+                    except Exception:
+                        pass
+        except Exception:
+            # best-effort only
+            pass
+
+    def _save_last_state(self, path: Optional[Path] = None) -> None:
+        try:
+            import json
+
+            data = {"last_world": self.current_world}
+            if path is not None:
+                data["last_path"] = str(path)
+            self.state_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception:
+            pass
 
     # Editing and execution
     def clear(self) -> None:
@@ -120,6 +221,7 @@ class WorldService:
             logs.append(
                 "Note: When multiple rules from same macro match, one is chosen randomly"
             )
+            # Before stepping, capture pre-step info if needed
             w.hex.step()
             new_active = [
                 f"({q},{r}):{cell}"
@@ -154,6 +256,8 @@ class WorldService:
                     logs.append(f"  ... and {len(deaths) - 10} more")
 
         logs.append("STEP: Completed")
+        # Add to history after step and return the same logs
+        self.history_add(logs)
         return logs
 
     # Utilities
