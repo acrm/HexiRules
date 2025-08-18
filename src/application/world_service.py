@@ -108,6 +108,12 @@ class WorldService:
         w = self.get_current_world()
         return list(w.history[index].logs) if 0 <= index < len(w.history) else []
 
+    def history_get_cells(self, index: int) -> List[Tuple[int, int, str, Optional[int]]]:
+        w = self.get_current_world()
+        if 0 <= index < len(w.history):
+            return list(w.history[index].cells)
+        return []
+
     def history_go(self, index: int) -> None:
         w = self.get_current_world()
         if not (0 <= index < len(w.history)):

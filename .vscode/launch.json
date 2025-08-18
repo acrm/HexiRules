@@ -1,59 +1,86 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "HexiRules: Run Application",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "Python: Current File",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Python: Run Tests",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "unittest",
-            "args": ["discover", "-s", "./tests", "-p", "test_*.py", "-v"],
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "Python: Debug Test",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/tests/test_automaton.py",
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "HexiRules: Full Code Quality Check",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/check_quality.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "HexiRules: Run CLI",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cli.py",
-            "args": ["--rule", "B3/S23", "--steps", "5"],
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "cwd": "${workspaceFolder}"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "GUI",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/main.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Build"
+    },
+    {
+      "name": "CLI",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/cli.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Build"
+    },
+    {
+      "name": "Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/run_tests.py",
+      "args": ["--no-gui"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Build"
+    },
+    {
+      "name": "Server",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/run_server.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Build"
+    },
+    {
+      "name": "Desktop",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/run_desktop.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Build: Desktop"
+    },
+    {
+      "name": "Web Dev",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "preLaunchTask": "Web: npm install"
+    },
+    {
+      "name": "Open Web",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/web"
+    },
+    {
+      "name": "Open Server Web",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8000",
+      "webRoot": "${workspaceFolder}/web"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "React Dev",
+      "configurations": ["Web Dev", "Open Web"]
+    }
+  ]
 }
