@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Tuple, Optional, cast
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -103,10 +103,10 @@ def get_logs(session_id: str, index: int) -> List[str]:
 
 
 @app.get("/history/cells")
-def get_cells(session_id: str, index: int) -> list[tuple[int, int, str, int | None]]:
+def get_cells(session_id: str, index: int) -> List[Tuple[int, int, str, Optional[int]]]:
     svc = sessions.get(session_id)
     # Service returns List[Tuple[int,int,str,Optional[int]]]
-    cells = svc.history_get_cells(index)
+    cells = cast(List[Tuple[int, int, str, Optional[int]]], svc.history_get_cells(index))
     return cells
 
 
@@ -136,4 +136,4 @@ def step(session_id: str, req: StepRequest) -> List[str]:
     svc = sessions.get(session_id)
     w = svc.get_current_world()
     rules_text = req.rules_text if req.rules_text is not None else w.rules_text
-    return svc.step(rules_text)
+    return cast(List[str], svc.step(rules_text))
