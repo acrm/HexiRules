@@ -33,15 +33,17 @@ def start_server(exc_out: "queue.Queue[str]") -> None:
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
 
-        import uvicorn  # type: ignore
-        from server.app import app  # type: ignore
+        import uvicorn
+        from server.app import app
 
         uvicorn.run(app, host="127.0.0.1", port=8000, reload=False, log_level="info")
     except Exception:
         exc_out.put(traceback.format_exc())
 
 
-def wait_for_health(url: str, timeout: float = 15.0, exc_in: queue.Queue[str] | None = None) -> None:
+def wait_for_health(
+    url: str, timeout: float = 15.0, exc_in: queue.Queue[str] | None = None
+) -> None:
     start = time.time()
     while time.time() - start < timeout:
         # If server thread reported an exception, surface immediately
@@ -61,15 +63,18 @@ def wait_for_health(url: str, timeout: float = 15.0, exc_in: queue.Queue[str] | 
         " - Optionally build web UI (or the app will open API docs): 'Web: build'"
     )
 
+
 def health_ok() -> bool:
     try:
         with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2) as resp:
-            return resp.status == 200
+            return resp.status == 200  # type: ignore[no-any-return]
     except Exception:
         return False
 
 
-def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str, str, subprocess.Popen[bytes] | None]:
+def _choose_url_and_maybe_start_dev(
+    web_dir: Path, web_dist: Path
+) -> tuple[str, str, subprocess.Popen[bytes] | None]:
     """Return (url, mode, dev_proc). mode in {build, dev, docs, override}."""
     url_env = os.environ.get("HEXI_URL")
     dev_proc: subprocess.Popen[bytes] | None = None
@@ -88,7 +93,9 @@ def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str,
                         return base + path, "build", None
             except Exception:
                 pass
-        print("[Desktop] Build preflight failed; falling back to API docs for visibility.")
+        print(
+            "[Desktop] Build preflight failed; falling back to API docs for visibility."
+        )
         return "http://127.0.0.1:8000/docs", "build", None
     # Try to start Vite dev server if tooling is available
     npm = shutil.which("npm")
@@ -100,9 +107,15 @@ def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str,
         if p.exists():
             local_vite = str(p)
             break
-    if (npm or local_vite) and web_dir.is_dir() and (web_dir / "package.json").is_file():
+    if (
+        (npm or local_vite)
+        and web_dir.is_dir()
+        and (web_dir / "package.json").is_file()
+    ):
         try:
-            print("[Desktop] web/dist not found. Starting React dev server via 'npm run dev'...")
+            print(
+                "[Desktop] web/dist not found. Starting React dev server via 'npm run dev'..."
+            )
             dev_env = os.environ.copy()
             dev_env["BROWSER"] = "none"
             # Optionally allow enabling experimental webcrypto via env opt-in (not default as some Node versions disallow it)
@@ -110,19 +123,34 @@ def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str,
                 existing_node_opts = dev_env.get("NODE_OPTIONS", "").strip()
                 extra_flag = "--experimental-global-webcrypto"
                 if extra_flag not in existing_node_opts:
-                    dev_env["NODE_OPTIONS"] = (existing_node_opts + " " + extra_flag).strip()
+                    dev_env["NODE_OPTIONS"] = (
+                        existing_node_opts + " " + extra_flag
+                    ).strip()
             if npm:
-                dev_cmd = [npm, "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"]
+                dev_cmd = [
+                    npm,
+                    "run",
+                    "dev",
+                    "--",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    "5173",
+                ]
             else:
-                print("[Desktop] npm not found; attempting to run local vite binary directly.")
+                print(
+                    "[Desktop] npm not found; attempting to run local vite binary directly."
+                )
                 dev_cmd = [local_vite, "--host", "127.0.0.1", "--port", "5173"]  # type: ignore[list-item]
             dev_proc = subprocess.Popen(dev_cmd, cwd=str(web_dir), env=dev_env)
-            atexit.register(lambda: dev_proc and dev_proc.terminate())
+            atexit.register(lambda: dev_proc.terminate() if dev_proc else None)
             start = time.time()
             reachable = False
             while time.time() - start < 15.0:
                 try:
-                    with urllib.request.urlopen("http://127.0.0.1:5173/", timeout=1) as resp:
+                    with urllib.request.urlopen(
+                        "http://127.0.0.1:5173/", timeout=1
+                    ) as resp:
                         if resp.status == 200:
                             print("[Desktop] Dev server is up at http://127.0.0.1:5173")
                             reachable = True
@@ -131,7 +159,9 @@ def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str,
                     time.sleep(0.3)
                 # If the dev process has already exited, abort early
                 if dev_proc.poll() is not None and dev_proc.returncode not in (0, None):
-                    print(f"[Desktop] Dev server process exited with code {dev_proc.returncode}; aborting dev mode.")
+                    print(
+                        f"[Desktop] Dev server process exited with code {dev_proc.returncode}; aborting dev mode."
+                    )
                     break
             if reachable:
                 return "http://127.0.0.1:5173", "dev", dev_proc
@@ -140,11 +170,15 @@ def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str,
                 dev_proc.terminate()
             except Exception:
                 pass
-            print("[Desktop] Dev server did not start in time; attempting a quick production build...")
+            print(
+                "[Desktop] Dev server did not start in time; attempting a quick production build..."
+            )
             # fall through to build logic below by raising to reuse existing path
             raise RuntimeError("dev server not reachable")
         except Exception:
-            print("[Desktop] Failed to start dev server; attempting a quick production build...")
+            print(
+                "[Desktop] Failed to start dev server; attempting a quick production build..."
+            )
             # Try a quick build to get web/dist, with a bounded timeout
             try:
                 build_timeout = float(os.environ.get("HEXI_WEB_BUILD_TIMEOUT", "120"))
@@ -172,10 +206,14 @@ def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str,
                 except Exception:
                     pass
                 if web_dist.is_dir() and (web_dist / "index.html").exists():
-                    print("[Desktop] Build produced web/dist; serving SPA from FastAPI.")
+                    print(
+                        "[Desktop] Build produced web/dist; serving SPA from FastAPI."
+                    )
                     return "http://127.0.0.1:8000", "build", None
                 else:
-                    print("[Desktop] Build did not complete in time; falling back to API docs.")
+                    print(
+                        "[Desktop] Build did not complete in time; falling back to API docs."
+                    )
                     return "http://127.0.0.1:8000/docs", "docs", None
             except Exception as be:
                 print(f"[Desktop] Build failed: {be}; falling back to API docs.")
@@ -184,7 +222,9 @@ def _choose_url_and_maybe_start_dev(web_dir: Path, web_dist: Path) -> tuple[str,
         if not npm:
             print("[Desktop] npm not found in PATH; cannot start dev server.")
         else:
-            print("[Desktop] web folder or package.json missing; cannot start dev server.")
+            print(
+                "[Desktop] web folder or package.json missing; cannot start dev server."
+            )
         return "http://127.0.0.1:8000/docs", "docs", None
 
 
@@ -201,14 +241,16 @@ def main() -> None:
         except Exception:
             timeout = 10.0
         try:
-            wait_for_health("http://127.0.0.1:8000/health", exc_in=exc_q, timeout=timeout)
+            wait_for_health(
+                "http://127.0.0.1:8000/health", exc_in=exc_q, timeout=timeout
+            )
         except Exception:
             # If health didn't come up, still open docs to show status
             pass
 
     # Open webview pointing at served SPA (or dev server during development)
     try:
-        import webview  # type: ignore
+        import webview
     except Exception as e:
         raise SystemExit("pywebview is required: pip install pywebview==5.2") from e
 

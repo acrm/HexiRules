@@ -46,7 +46,9 @@ def _load_package_tests(
 
             def predicate(tc: unittest.TestCase) -> bool:
                 mod = getattr(tc.__class__, "__module__", "")
-                return not mod.endswith(".test_canvas")
+                return not (
+                    mod.endswith(".test_canvas") or mod.endswith(".test_gui_constants")
+                )
 
             filtered = unittest.TestSuite()
             for case in iter_cases(discovered_suite):

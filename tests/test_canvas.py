@@ -13,10 +13,10 @@ try:
     test_root.withdraw()
     test_root.destroy()
     GUI_AVAILABLE = True
+    from main import HexCanvas
 except Exception:
     GUI_AVAILABLE = False
-
-from main import HexCanvas
+    HexCanvas = None
 
 
 class TestHexCanvas(unittest.TestCase):

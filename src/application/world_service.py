@@ -94,7 +94,7 @@ class WorldService:
         snap = w.snapshot(logs, index=idx)
         # If we're not at the end, truncate forward history
         if idx < len(w.history):
-            w.history = w.history[: idx]
+            w.history = w.history[:idx]
         w.history.append(snap)
         w.history_index = idx + 1
         return snap
@@ -108,7 +108,9 @@ class WorldService:
         w = self.get_current_world()
         return list(w.history[index].logs) if 0 <= index < len(w.history) else []
 
-    def history_get_cells(self, index: int) -> List[Tuple[int, int, str, Optional[int]]]:
+    def history_get_cells(
+        self, index: int
+    ) -> List[Tuple[int, int, str, Optional[int]]]:
         w = self.get_current_world()
         if 0 <= index < len(w.history):
             return list(w.history[index].cells)

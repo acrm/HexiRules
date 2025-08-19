@@ -25,8 +25,7 @@ class JsonWorldRepository(WorldRepository):
                     "active_count": s.active_count,
                     "logs": s.logs,
                     "cells": [
-                        {"q": q, "r": r, "s": st, "d": d}
-                        for (q, r, st, d) in s.cells
+                        {"q": q, "r": r, "s": st, "d": d} for (q, r, st, d) in s.cells
                     ],
                 }
                 for s in world.history
