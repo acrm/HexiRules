@@ -12,7 +12,7 @@ if __name__ == "__main__":
     src_path = str(repo_root / "src")
     if src_path not in sys.path:
         sys.path.insert(0, src_path)
-    from server.app import app  # type: ignore
+    from server.app import app
 
     host = os.environ.get("HEXI_HOST", "127.0.0.1")
     port = int(os.environ.get("HEXI_PORT", "8000"))

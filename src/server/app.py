@@ -98,13 +98,16 @@ def get_history(session_id: str) -> List[HistoryItem]:
 @app.get("/history/logs")
 def get_logs(session_id: str, index: int) -> List[str]:
     svc = sessions.get(session_id)
-    return svc.history_get_logs(index)
+    logs: List[str] = svc.history_get_logs(index)
+    return logs
 
 
 @app.get("/history/cells")
-def get_cells(session_id: str, index: int):
+def get_cells(session_id: str, index: int) -> list[tuple[int, int, str, int | None]]:
     svc = sessions.get(session_id)
-    return svc.history_get_cells(index)
+    # Service returns List[Tuple[int,int,str,Optional[int]]]
+    cells = svc.history_get_cells(index)
+    return cells
 
 
 @app.post("/history/go")

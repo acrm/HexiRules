@@ -139,10 +139,13 @@ class WorldService:
         current selection is history_index - 1 clamped into [0, len-1].
         """
         w = self.get_current_world()
-        if not w.history:
+        if len(w.history) == 0:
             return -1
-        idx = max(0, min(len(w.history) - 1, w.history_index - 1))
-        return idx
+        # Ensure arithmetic stays in int domain for mypy clarity
+        length: int = len(w.history)
+        insertion: int = int(w.history_index)
+        idx: int = max(0, min(length - 1, insertion - 1))
+        return int(idx)
 
     # Internal state persistence
     def _load_last_state(self) -> None:

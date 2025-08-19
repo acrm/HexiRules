@@ -49,9 +49,9 @@ class JsonWorldRepository(WorldRepository):
                 int(item["q"]), int(item["r"]), str(item["s"]), item.get("d")
             )
         # load history if present
-        history = []
+        history: list[StepSnapshot] = []
         for s in data.get("history", []):
-            cells = [
+            cells: list[tuple[int, int, str, int | None]] = [
                 (int(c["q"]), int(c["r"]), str(c["s"]), c.get("d"))
                 for c in s.get("cells", [])
             ]
