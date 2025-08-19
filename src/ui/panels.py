@@ -32,7 +32,9 @@ def build_world_tab(
         side=tk.RIGHT, padx=3
     )
     if on_rename is not None:
-        tk.Button(btns, text="Rename", width=10, command=on_rename).pack(side=tk.RIGHT, padx=3)
+        tk.Button(btns, text="Rename", width=10, command=on_rename).pack(
+            side=tk.RIGHT, padx=3
+        )
 
     # Info
     world_info = tk.Label(
@@ -158,6 +160,8 @@ def build_history_panel(
     nav.grid(row=1, column=0, columnspan=2, sticky="ew", padx=6, pady=4)
     tk.Button(nav, text="Prev", width=8, command=on_prev).pack(side=tk.LEFT)
     tk.Button(nav, text="Next", width=8, command=on_next).pack(side=tk.LEFT, padx=6)
-    tk.Button(nav, text="Progress", width=10, command=on_progress, bg="lightgreen").pack(side=tk.RIGHT)
+    tk.Button(
+        nav, text="Progress", width=10, command=on_progress, bg="lightgreen"
+    ).pack(side=tk.RIGHT)
 
     return history_list, log_text

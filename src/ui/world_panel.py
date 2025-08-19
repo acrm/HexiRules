@@ -21,12 +21,8 @@ def build_world_tab(
     tk.Button(btns, text="New", width=10, command=on_new, bg="lightgreen").pack(
         side=tk.LEFT, padx=3
     )
-    tk.Button(btns, text="Load", width=10, command=on_load).pack(
-        side=tk.LEFT, padx=3
-    )
-    tk.Button(btns, text="Save", width=10, command=on_save).pack(
-        side=tk.LEFT, padx=3
-    )
+    tk.Button(btns, text="Load", width=10, command=on_load).pack(side=tk.LEFT, padx=3)
+    tk.Button(btns, text="Save", width=10, command=on_save).pack(side=tk.LEFT, padx=3)
     if on_rename is not None:
         tk.Button(btns, text="Rename", width=10, command=on_rename).pack(
             side=tk.LEFT, padx=3

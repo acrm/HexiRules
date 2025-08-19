@@ -34,7 +34,9 @@ sessions = SessionManager()
 
 
 # Optionally serve built web client (Vite build) from web/dist
-WEB_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "web", "dist")
+WEB_DIST = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "web", "dist"
+)
 if os.path.isdir(WEB_DIST):
     app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="static")
 
@@ -106,7 +108,9 @@ def get_logs(session_id: str, index: int) -> List[str]:
 def get_cells(session_id: str, index: int) -> List[Tuple[int, int, str, Optional[int]]]:
     svc = sessions.get(session_id)
     # Service returns List[Tuple[int,int,str,Optional[int]]]
-    cells = cast(List[Tuple[int, int, str, Optional[int]]], svc.history_get_cells(index))
+    cells = cast(
+        List[Tuple[int, int, str, Optional[int]]], svc.history_get_cells(index)
+    )
     return cells
 
 

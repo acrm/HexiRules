@@ -146,7 +146,7 @@ class HexiRulesGUI:
         controls_frame.grid_columnconfigure(0, weight=2, minsize=220)
         controls_frame.grid_columnconfigure(1, weight=1, minsize=180)
 
-    # Worlds (left)
+        # Worlds (left)
         world_section = tk.LabelFrame(controls_frame, text="Worlds", bg="lightblue")
         world_section.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self.world_list, self.world_info = build_world_tab(
@@ -175,7 +175,9 @@ class HexiRulesGUI:
 
         # History (full width, now below Rules) with Progress button
         history_section = tk.LabelFrame(controls_frame, text="History", bg="lightblue")
-        history_section.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
+        history_section.grid(
+            row=2, column=0, columnspan=2, sticky="nsew", padx=4, pady=4
+        )
         self.history_list, self.history_log = build_history_panel(
             history_section,
             self.on_history_select,

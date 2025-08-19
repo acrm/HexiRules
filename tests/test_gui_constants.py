@@ -4,7 +4,16 @@ Test suite for non-GUI components that can be tested without Tkinter
 """
 
 import unittest
-from gui import STATE_COLORS, SYMBOLIC_STATES
+
+# Try to import GUI constants, skip tests if GUI not available
+try:
+    from gui import STATE_COLORS, SYMBOLIC_STATES
+
+    GUI_AVAILABLE = True
+except ImportError:
+    GUI_AVAILABLE = False
+    STATE_COLORS = {}
+    SYMBOLIC_STATES = []
 
 
 class TestGUIConstants(unittest.TestCase):
@@ -12,11 +21,15 @@ class TestGUIConstants(unittest.TestCase):
 
     def test_state_colors_completeness(self):
         """Test that all symbolic states have colors defined."""
+        if not GUI_AVAILABLE:
+            self.skipTest("GUI not available (no tkinter)")
         for state in SYMBOLIC_STATES:
             self.assertIn(state, STATE_COLORS, f"State '{state}' missing color")
 
     def test_state_colors_format(self):
         """Test that all colors are properly formatted."""
+        if not GUI_AVAILABLE:
+            self.skipTest("GUI not available (no tkinter)")
         for state, color in STATE_COLORS.items():
             self.assertIsInstance(
                 color, str, f"Color for state '{state}' is not a string"
@@ -30,6 +43,8 @@ class TestGUIConstants(unittest.TestCase):
 
     def test_symbolic_states_coverage(self):
         """Test that we have a reasonable set of symbolic states."""
+        if not GUI_AVAILABLE:
+            self.skipTest("GUI not available (no tkinter)")
         # Should have empty state
         self.assertIn("_", SYMBOLIC_STATES)
 
