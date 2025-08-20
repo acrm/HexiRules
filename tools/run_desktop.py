@@ -273,7 +273,9 @@ def main() -> None:
 
     url, _mode, dev_proc = _choose_url_and_maybe_start_dev(web_dir, web_dist)
     # Set a sensible initial and minimum window size
-    window = webview.create_window(title, url, width=1100, height=800, min_size=(600, 800))
+    window = webview.create_window(
+        title, url, width=1100, height=800, min_size=(600, 800)
+    )
     webview.start()
 
 
