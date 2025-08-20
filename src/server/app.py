@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Tuple, Optional, cast
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +17,9 @@ from server.schemas import (
     StepRequest,
     WorldCreate,
     WorldSummary,
+    RandomRequest,
+    CellSetRequest,
+    RenameRequest,
 )
 
 app = FastAPI(title="HexiRules Server", version="0.1.0")
@@ -33,21 +36,21 @@ app.add_middleware(
 sessions = SessionManager()
 
 
-# Optionally serve built web client (Vite build) from web/dist
+# Path to built web client (Vite build); will be mounted after API routes are registered
 WEB_DIST = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "web", "dist"
 )
-if os.path.isdir(WEB_DIST):
-    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="static")
 
 
 @app.post("/session")
+@app.get("/session")
 def create_session() -> dict:
     sid = sessions.create()
-    # seed a default world to simplify usage
+    # Seed a default world only if none exist; otherwise keep existing worlds and last selection.
     svc = sessions.get(sid)
-    svc.create_world(name="World", radius=20, _is_hex=True, rules_text="")
-    svc.select_world("World")
+    if not svc.worlds:
+        svc.create_world(name="World", radius=20, _is_hex=True, rules_text="")
+        svc.select_world("World")
     return {"session_id": sid}
 
 
@@ -61,10 +64,41 @@ def list_worlds(session_id: str) -> List[WorldSummary]:
     svc = sessions.get(session_id)
     items: List[WorldSummary] = []
     for name, w in svc.worlds.items():
-        items.append(
-            WorldSummary(name=name, radius=w.radius, active_count=svc.active_count())
-        )
+        # Compute active cells for this world directly; do not rely on current selection
+        try:
+            active = sum(1 for cell in w.hex.grid.values() if cell.state != "_")
+        except Exception:
+            active = 0
+        items.append(WorldSummary(name=name, radius=w.radius, active_count=active))
     return items
+
+
+@app.post("/world/select")
+def select_world(session_id: str, name: str) -> dict:
+    svc = sessions.get(session_id)
+    svc.select_world(name)
+    return {"ok": True}
+
+
+@app.post("/world/rename")
+def rename_world(session_id: str, req: RenameRequest) -> dict:
+    svc = sessions.get(session_id)
+    svc.rename_world(req.old_name, req.new_name)
+    return {"ok": True}
+
+
+@app.post("/world/delete")
+def delete_world(session_id: str, name: str) -> dict:
+    svc = sessions.get(session_id)
+    if name in svc.worlds:
+        svc.delete_world(name)
+        if svc.worlds and svc.current_world is None:
+            next_name = sorted(svc.worlds.keys())[0]
+            try:
+                svc.select_world(next_name)
+            except Exception:
+                pass
+    return {"ok": True}
 
 
 @app.post("/world")
@@ -89,6 +123,38 @@ def save_world(session_id: str, req: SaveWorldRequest) -> dict:
     svc = sessions.get(session_id)
     svc.save_world_to_file(req.path, is_hexidirect=True, rules_text=req.rules_text)
     return {"ok": True}
+
+
+@app.post("/cells/clear")
+def cells_clear(session_id: str) -> dict:
+    svc = sessions.get(session_id)
+    svc.clear()
+    return {"ok": True}
+
+
+@app.post("/cells/random")
+def cells_random(session_id: str, req: RandomRequest) -> dict:
+    svc = sessions.get(session_id)
+    svc.randomize(req.states, req.p)
+    return {"ok": True}
+
+
+@app.post("/cells/set")
+def cells_set(session_id: str, req: CellSetRequest) -> dict:
+    svc = sessions.get(session_id)
+    svc.set_cell(req.q, req.r, req.state, req.direction)
+    return {"ok": True}
+
+
+@app.get("/cells/current")
+def cells_current(session_id: str) -> List[Tuple[int, int, str, Optional[int]]]:
+    svc = sessions.get(session_id)
+    w = svc.get_current_world()
+    out: List[Tuple[int, int, str, Optional[int]]] = []
+    for (q, r), cell in w.hex.grid.items():
+        if cell.state != "_":
+            out.append((q, r, cell.state, cell.direction))
+    return out
 
 
 @app.get("/history", response_model=List[HistoryItem])
@@ -141,3 +207,32 @@ def step(session_id: str, req: StepRequest) -> List[str]:
     w = svc.get_current_world()
     rules_text = req.rules_text if req.rules_text is not None else w.rules_text
     return cast(List[str], svc.step(rules_text))
+
+# Provide the same endpoints under /api/* to avoid collisions with the SPA served at '/'
+api_router = APIRouter()
+api_router.add_api_route("/session", create_session, methods=["POST", "GET"])
+api_router.add_api_route("/health", health, methods=["GET"])
+api_router.add_api_route("/worlds", list_worlds, methods=["GET"])
+api_router.add_api_route("/world/select", select_world, methods=["POST"])
+api_router.add_api_route("/world/rename", rename_world, methods=["POST"])
+api_router.add_api_route("/world/delete", delete_world, methods=["POST"])
+api_router.add_api_route("/world", create_world, methods=["POST"])
+api_router.add_api_route("/world/load", load_world, methods=["POST"])
+api_router.add_api_route("/world/save", save_world, methods=["POST"])
+api_router.add_api_route("/cells/clear", cells_clear, methods=["POST"])
+api_router.add_api_route("/cells/random", cells_random, methods=["POST"])
+api_router.add_api_route("/cells/set", cells_set, methods=["POST"])
+api_router.add_api_route("/cells/current", cells_current, methods=["GET"])
+api_router.add_api_route("/history", get_history, methods=["GET"])
+api_router.add_api_route("/history/logs", get_logs, methods=["GET"])
+api_router.add_api_route("/history/cells", get_cells, methods=["GET"])
+api_router.add_api_route("/history/go", go_to, methods=["POST"])
+api_router.add_api_route("/history/prev", prev, methods=["POST"])
+api_router.add_api_route("/history/next", next_, methods=["POST"])
+api_router.add_api_route("/step", step, methods=["POST"])
+
+app.include_router(api_router, prefix="/api")
+
+# Finally, mount the built SPA at '/'. Do this after API routes so /api is handled by FastAPI, not StaticFiles.
+if os.path.isdir(WEB_DIST):
+    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="static")

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import shutil
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from typing import cast
@@ -19,8 +21,20 @@ class WorldService:
         self.repository: WorldRepository = repository or JsonWorldRepository()
         self.worlds: Dict[str, World] = {}
         self.current_world: Optional[str] = None
-        # app-level persistence (simple file near repo root)
-        self.state_file: Path = Path(".hexi_state.json")
+        # persistent data root (default: ./data). Worlds and state live here.
+        # persistent worlds directory now under server data dir (default: ./data/worlds)
+        data_root = Path(os.environ.get("HEXI_DATA_DIR", "data"))
+        self.data_root: Path = data_root
+        self.worlds_dir: Path = data_root / "worlds"
+        self.worlds_dir.mkdir(parents=True, exist_ok=True)
+        # app-level persistence file inside data dir
+        self.state_file: Path = self.data_root / ".hexi_state.json"
+        # migrate any legacy .hexi_worlds content if present
+        self._maybe_migrate_legacy_worlds()
+        # migrate legacy state file if present
+        self._maybe_migrate_legacy_state()
+        # Load any existing worlds from the persistence directory; if none, proceed to last_state load
+        self._load_worlds_dir()
         self._load_last_state()
 
     # Worlds
@@ -35,6 +49,7 @@ class WorldService:
         init_snap = world.snapshot(["Initial state created"])  # index 0
         world.history.append(init_snap)
         world.history_index = 1
+        self._persist_world(world)
 
     def select_world(self, name: str) -> World:
         if name not in self.worlds:
@@ -86,6 +101,25 @@ class WorldService:
         if self.current_world == old_name:
             self.current_world = new_name
         self._save_last_state()
+        # rename on disk: delete old file if present, save new
+        old_path = self.worlds_dir / f"{old_name}.json"
+        try:
+            if old_path.exists():
+                old_path.unlink()
+        except Exception:
+            pass
+        self._persist_world(world)
+    
+    def delete_world(self, name: str) -> None:
+        if name in self.worlds:
+            self.worlds.pop(name)
+            try:
+                (self.worlds_dir / f"{name}.json").unlink(missing_ok=True)  # type: ignore[arg-type]
+            except Exception:
+                pass
+            if self.current_world == name:
+                self.current_world = None
+            self._save_last_state()
 
     # History APIs
     def history_add(self, logs: List[str]) -> StepSnapshot:
@@ -156,11 +190,19 @@ class WorldService:
                 import json
 
                 data = json.loads(self.state_file.read_text(encoding="utf-8"))
+                # Restore by last opened file if present
                 last_path = data.get("last_path")
                 if last_path and Path(last_path).exists():
                     try:
                         name = self.load_world_from_file(last_path)
                         self.select_world(name)
+                    except Exception:
+                        pass
+                # Otherwise, prefer selecting by last known world name if available
+                last_world = data.get("last_world")
+                if last_world and last_world in self.worlds:
+                    try:
+                        self.select_world(last_world)
                     except Exception:
                         pass
         except Exception:
@@ -181,6 +223,11 @@ class WorldService:
     # Editing and execution
     def clear(self) -> None:
         self.get_current_world().hex.clear()
+        # persist change
+        try:
+            self._persist_world(self.get_current_world())
+        except Exception:
+            pass
 
     def randomize(self, states: Iterable[str], p: float = 0.3) -> None:
         import random
@@ -194,6 +241,19 @@ class WorldService:
                     state = random.choice(pool) if pool else "a"
                     direction = random.choice([None, 1, 2, 3, 4, 5, 6])
                     w.hex.set_cell(q, r, state, direction)
+        # persist change
+        try:
+            self._persist_world(w)
+        except Exception:
+            pass
+
+    def set_cell(self, q: int, r: int, state: str, direction: Optional[int]) -> None:
+        w = self.get_current_world()
+        w.hex.set_cell(q, r, state, direction)
+        try:
+            self._persist_world(w)
+        except Exception:
+            pass
 
     def step(self, rules_text: str) -> List[str]:
         """Apply a single simulation step and return log messages."""
@@ -285,3 +345,63 @@ class WorldService:
     # Utilities
     def active_count(self) -> int:
         return len(self.get_current_world().hex.get_active_cells())
+
+    # Persistence helpers
+    def _persist_world(self, world: World) -> None:
+        path = self.worlds_dir / f"{world.name}.json"
+        self.repository.save(world, path)
+
+    def _load_worlds_dir(self) -> None:
+        try:
+            for p in sorted(self.worlds_dir.glob("*.json")):
+                try:
+                    w = cast(World, self.repository.load(p))
+                    self.worlds[w.name] = w
+                except Exception:
+                    pass
+            # select any world if none selected
+            if self.worlds and not self.current_world:
+                self.current_world = sorted(self.worlds.keys())[0]
+        except Exception:
+            pass
+
+    def _maybe_migrate_legacy_worlds(self) -> None:
+        """Move worlds from legacy .hexi_worlds into data/worlds if needed.
+        Only migrates when the new directory has no .json worlds yet.
+        """
+        try:
+            legacy = Path(".hexi_worlds")
+            if not legacy.exists() or not legacy.is_dir():
+                return
+            # If new dir already has worlds, do not migrate
+            has_new = any((self.worlds_dir).glob("*.json"))
+            if has_new:
+                return
+            for p in legacy.glob("*.json"):
+                try:
+                    shutil.move(str(p), str(self.worlds_dir / p.name))
+                except Exception:
+                    pass
+            # Try to remove legacy dir if empty
+            try:
+                if not any(legacy.iterdir()):
+                    legacy.rmdir()
+            except Exception:
+                pass
+        except Exception:
+            # best-effort migration
+            pass
+
+    def _maybe_migrate_legacy_state(self) -> None:
+        """Move .hexi_state.json from project root into data directory if needed."""
+        try:
+            legacy = Path(".hexi_state.json")
+            target = self.state_file
+            if legacy.exists() and not target.exists():
+                try:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(legacy), str(target))
+                except Exception:
+                    pass
+        except Exception:
+            pass

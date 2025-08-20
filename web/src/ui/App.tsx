@@ -1,77 +1,50 @@
 import React, { useEffect, useState } from 'react'
-import { createSession, createWorld, listHistory, getLogs, step, go, prev, next_ } from '../api/client'
+import { createSession } from '../api/client'
+import { WorldsPanel } from './WorldsPanel'
+import { GridPanel } from './GridPanel'
 
 export function App() {
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [rules, setRules] = useState<string>('')
-  const [history, setHistory] = useState<{ index: number; active_count: number }[]>([])
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const [logs, setLogs] = useState<string[]>([])
-  const [busy, setBusy] = useState(false)
+  const [uiLog, setUiLog] = useState<string[]>([])
+  const [worldName, setWorldName] = useState<string | null>(null)
+  function log(msg: string) { setUiLog(prev => [...prev, msg]) }
 
   useEffect(() => {
     (async () => {
-      const sid = await createSession()
-      setSessionId(sid)
-      await createWorld(sid, 'World', 20, '')
-      const h = await listHistory(sid)
-      setHistory(h)
-      const sel = h.length ? h[h.length - 1].index : null
-      setSelectedIndex(sel)
-      if (sel !== null) setLogs(await getLogs(sid, sel))
+      try {
+        log('Creating session…')
+        const sid = await createSession()
+        setSessionId(sid)
+        log('Session ready: ' + sid)
+      } catch (e: any) {
+        log('Error creating session: ' + (e?.message || e))
+      }
     })()
   }, [])
-
-  async function refresh() {
-    if (!sessionId) return
-    const h = await listHistory(sessionId)
-    setHistory(h)
-    const sel = h.length ? h[h.length - 1].index : null
-    setSelectedIndex(sel)
-    if (sel !== null) setLogs(await getLogs(sessionId, sel))
-  }
-
-  async function doStep() {
-    if (!sessionId) return
-    setBusy(true)
-    try {
-      await step(sessionId, rules || undefined)
-      await refresh()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function select(i: number) {
-    if (!sessionId) return
-    await go(sessionId, i)
-    setSelectedIndex(i)
-    setLogs(await getLogs(sessionId, i))
+  async function copyLog() {
+    try { await navigator.clipboard.writeText(uiLog.join('\n')) } catch {}
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, padding: 16 }}>
-      <div>
-        <h3>Rules</h3>
-        <textarea style={{ width: '100%', height: 120 }} value={rules} onChange={e => setRules(e.target.value)} />
-        <div style={{ marginTop: 8 }}>
-          <button onClick={doStep} disabled={busy}>{busy ? 'Progress…' : 'Progress'}</button>
-          <button onClick={() => sessionId && prev(sessionId).then(refresh)} style={{ marginLeft: 8 }}>Prev</button>
-          <button onClick={() => sessionId && next_(sessionId).then(refresh)} style={{ marginLeft: 8 }}>Next</button>
+    <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '340px 1fr', gap: 16, height: '100vh', boxSizing: 'border-box', minWidth: 600, minHeight: 800 }}>
+      {/* Left column: controls and log stacked, fills height */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        <div style={{ overflow: 'auto' }}>
+          <WorldsPanel sessionId={sessionId} onLog={log} onWorldChange={(n) => setWorldName(n)} />
         </div>
-        <h3 style={{ marginTop: 16 }}>History</h3>
-        <ul style={{ listStyle: 'none', padding: 0, maxHeight: 200, overflow: 'auto', border: '1px solid #ccc' }}>
-          {history.map(h => (
-            <li key={h.index} style={{ padding: 4, cursor: 'pointer', background: selectedIndex === h.index ? '#eef' : 'transparent' }} onClick={() => select(h.index)}>
-              Step {h.index} — active {h.active_count}
-            </li>
-          ))}
-        </ul>
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h4 style={{ margin: 0 }}>UI Log</h4>
+          <button onClick={copyLog}>Copy</button>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <pre style={{ height: '100%', overflow: 'auto', background: '#111', color: '#ddd', padding: 8, userSelect: 'text', whiteSpace: 'pre-wrap', borderRadius: 4 }}>
+            {uiLog.join('\n')}
+          </pre>
+        </div>
       </div>
-      <div>
-        <h3>Step Logs</h3>
-        <pre style={{ height: 360, overflow: 'auto', background: '#111', color: '#ddd', padding: 12 }}>{logs.join('\n')}</pre>
-        <div style={{ marginTop: 12, opacity: 0.6 }}>Canvas placeholder — implement hex rendering next.</div>
+      {/* Right column: grid fills and centers */}
+      <div style={{ minWidth: 0, height: '100%' }}>
+        <GridPanel sessionId={sessionId} worldName={worldName} onLog={log} />
       </div>
     </div>
   )
