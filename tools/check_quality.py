@@ -119,6 +119,31 @@ def main() -> int:
     print_result("Tests", test_passed, test_output if not test_passed else "")
     all_passed = all_passed and test_passed
 
+    # 4. Web Build and Type Check
+    print_header("Web Build and Type Check")
+    web_dir = repo_root / "web"
+    if (web_dir / "package.json").exists():
+        ci_cmd = ["npm", "--prefix", str(web_dir), "ci"]
+        ci_passed, ci_output = run_command(ci_cmd, "Web Dependency Install")
+        print_result(
+            "Web Dependency Install", ci_passed, ci_output if not ci_passed else ""
+        )
+
+        build_cmd = ["npm", "--prefix", str(web_dir), "run", "build"]
+        build_passed, build_output = run_command(build_cmd, "Web Build")
+        print_result(
+            "Web Build", build_passed, build_output if not build_passed else ""
+        )
+
+        type_cmd = ["npm", "--prefix", str(web_dir), "run", "typecheck"]
+        type_passed, type_output = run_command(type_cmd, "Web Type Check")
+        print_result(
+            "Web Type Check", type_passed, type_output if not type_passed else ""
+        )
+        all_passed = all_passed and ci_passed and build_passed and type_passed
+    else:
+        print("Web directory not found; skipping web checks")
+
     # Final Summary
     print_header("Final Summary")
     if all_passed:

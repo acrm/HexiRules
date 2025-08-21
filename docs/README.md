@@ -25,6 +25,7 @@ A hexagonal cellular automaton simulator with an interactive GUI, supporting bot
 
 ### Prerequisites
 - Python 3.8 or higher
+- Node.js 20+ (for web build checks)
 - No external dependencies (uses only standard library)
 
 ### Installation & Running
@@ -39,10 +40,10 @@ python -m venv .venv
 .venv/Scripts/activate
 
 # Run the GUI
-python main.py
+python src/main.py
 
 # Optional: run the quality checks
-python check_quality.py
+python tools/check_quality.py
 ```
 
 ## 🎮 How to Use
@@ -128,3 +129,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 Current state: The GUI uses stacked panels (no tabs), HexiDirect is the default mode with a compact switcher, the canvas auto-scales, and worlds can be saved/loaded as JSON. Engines and parsing features are covered by unit tests and a consolidated quality checker.
+
