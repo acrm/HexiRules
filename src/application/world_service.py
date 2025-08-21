@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import logging
 import os
 import shutil
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -12,6 +13,8 @@ from domain.worlds.world import World
 from infrastructure.persistence.json_world_repository import JsonWorldRepository
 from domain.worlds.repository import WorldRepository
 from domain.worlds.history import StepSnapshot
+
+logger = logging.getLogger(__name__)
 
 
 class WorldService:
@@ -106,8 +109,8 @@ class WorldService:
         try:
             if old_path.exists():
                 old_path.unlink()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("could not remove %s: %s", old_path, exc)
         self._persist_world(world)
 
     def delete_world(self, name: str) -> None:
@@ -115,8 +118,8 @@ class WorldService:
             self.worlds.pop(name)
             try:
                 (self.worlds_dir / f"{name}.json").unlink(missing_ok=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("could not remove %s: %s", name, exc)
             if self.current_world == name:
                 self.current_world = None
             self._save_last_state()
@@ -196,18 +199,19 @@ class WorldService:
                     try:
                         name = self.load_world_from_file(last_path)
                         self.select_world(name)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning(
+                            "failed to restore world from %s: %s", last_path, exc
+                        )
                 # Otherwise, prefer selecting by last known world name if available
                 last_world = data.get("last_world")
                 if last_world and last_world in self.worlds:
                     try:
                         self.select_world(last_world)
-                    except Exception:
-                        pass
-        except Exception:
-            # best-effort only
-            pass
+                    except Exception as exc:
+                        logger.warning("failed to select world %s: %s", last_world, exc)
+        except Exception as exc:
+            logger.warning("failed to load last state: %s", exc)
 
     def _save_last_state(self, path: Optional[Path] = None) -> None:
         try:
@@ -217,8 +221,8 @@ class WorldService:
             if path is not None:
                 data["last_path"] = str(path)
             self.state_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("failed to save state: %s", exc)
 
     # Editing and execution
     def clear(self) -> None:
@@ -226,8 +230,8 @@ class WorldService:
         # persist change
         try:
             self._persist_world(self.get_current_world())
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("failed to persist world after clear: %s", exc)
 
     def randomize(self, states: Iterable[str], p: float = 0.3) -> None:
         import random
@@ -244,16 +248,16 @@ class WorldService:
         # persist change
         try:
             self._persist_world(w)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("failed to persist world after randomize: %s", exc)
 
     def set_cell(self, q: int, r: int, state: str, direction: Optional[int]) -> None:
         w = self.get_current_world()
         w.hex.set_cell(q, r, state, direction)
         try:
             self._persist_world(w)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("failed to persist world after set_cell: %s", exc)
 
     def step(self, rules_text: str) -> List[str]:
         """Apply a single simulation step and return log messages."""
@@ -357,13 +361,13 @@ class WorldService:
                 try:
                     w = cast(World, self.repository.load(p))
                     self.worlds[w.name] = w
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("failed to load world %s: %s", p, exc)
             # select any world if none selected
             if self.worlds and not self.current_world:
                 self.current_world = sorted(self.worlds.keys())[0]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("failed to load worlds directory: %s", exc)
 
     def _maybe_migrate_legacy_worlds(self) -> None:
         """Move worlds from legacy .hexi_worlds into data/worlds if needed.
@@ -380,17 +384,16 @@ class WorldService:
             for p in legacy.glob("*.json"):
                 try:
                     shutil.move(str(p), str(self.worlds_dir / p.name))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("failed to migrate world %s: %s", p, exc)
             # Try to remove legacy dir if empty
             try:
                 if not any(legacy.iterdir()):
                     legacy.rmdir()
-            except Exception:
-                pass
-        except Exception:
-            # best-effort migration
-            pass
+            except Exception as exc:
+                logger.warning("failed to remove legacy dir %s: %s", legacy, exc)
+        except Exception as exc:
+            logger.warning("legacy world migration failed: %s", exc)
 
     def _maybe_migrate_legacy_state(self) -> None:
         """Move .hexi_state.json from project root into data directory if needed."""
@@ -401,7 +404,7 @@ class WorldService:
                 try:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(legacy), str(target))
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as exc:
+                    logger.warning("failed to migrate legacy state: %s", exc)
+        except Exception as exc:
+            logger.warning("legacy state migration failed: %s", exc)

@@ -15,7 +15,8 @@ This document proposes a path to enable:
 
 ## Sessions and Worlds
 
-- SessionManager: maps a session_id to a `WorldService` instance (in-memory).
+- SessionManager: maps a session_id to a `WorldService` instance (in-memory) and
+  prunes sessions after inactivity.
 - Each session can manage multiple `World`s; one is current.
 - Persistence: existing JSON repository; server exposes load/save endpoints.
 
@@ -54,3 +55,4 @@ WebSocket for streaming updates can be added later (e.g., `/ws?session_id=...`).
 1) Wire minimal React SPA scaffold (Vite + TS) outside Python runtime; connect to these endpoints.
 2) Add WebSocket for live push of history updates and logs.
 3) For desktop offline bundle, embed SPA via `pywebview` and run FastAPI in-process.
+

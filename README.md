@@ -25,6 +25,7 @@ A hexagonal cellular automaton simulator with an interactive GUI, supporting bot
 
 ### Prerequisites
 - Python 3.8 or higher
+- Node.js 20+ (for web build checks)
 - No external dependencies (uses only standard library)
 
 ### Installation & Running
@@ -61,7 +62,7 @@ python tools/check_quality.py
 
 ### Running Tests
 ```bash
-# Unified quality checker (type check, format check, tests)
+# Unified quality checker (type check, format check, tests, web build)
 HEXIRULES_NO_GUI=1 python tools/check_quality.py
 
 # Or run tests directly
