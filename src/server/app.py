@@ -208,6 +208,7 @@ def step(session_id: str, req: StepRequest) -> List[str]:
     rules_text = req.rules_text if req.rules_text is not None else w.rules_text
     return cast(List[str], svc.step(rules_text))
 
+
 # Provide the same endpoints under /api/* to avoid collisions with the SPA served at '/'
 api_router = APIRouter()
 api_router.add_api_route("/session", create_session, methods=["POST", "GET"])

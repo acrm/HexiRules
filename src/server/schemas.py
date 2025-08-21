@@ -32,16 +32,19 @@ class WorldSummary(BaseModel):
     name: str
     radius: int
     active_count: int
-    
+
+
 class RandomRequest(BaseModel):
     states: List[str]
     p: float = 0.3
+
 
 class CellSetRequest(BaseModel):
     q: int
     r: int
     state: str
     direction: Optional[int] = None
+
 
 class RenameRequest(BaseModel):
     old_name: str

@@ -109,12 +109,12 @@ class WorldService:
         except Exception:
             pass
         self._persist_world(world)
-    
+
     def delete_world(self, name: str) -> None:
         if name in self.worlds:
             self.worlds.pop(name)
             try:
-                (self.worlds_dir / f"{name}.json").unlink(missing_ok=True)  # type: ignore[arg-type]
+                (self.worlds_dir / f"{name}.json").unlink(missing_ok=True)
             except Exception:
                 pass
             if self.current_world == name:
