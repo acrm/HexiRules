@@ -3,7 +3,7 @@ import { cellsCurrent, cellsSet, listWorlds } from '../api/client'
 
 type Cell = [number, number, string, number | null]
 
-export function GridPanel({ sessionId, worldName, onLog }: { sessionId: string | null; worldName: string | null; onLog: (msg: string) => void }) {
+export function GridPanel({ sessionId, worldName, onLog, rulesText, refreshTrigger }: { sessionId: string | null; worldName: string | null; onLog: (msg: string) => void; rulesText?: string; refreshTrigger?: number }) {
   const [cells, setCells] = useState<Cell[]>([])
   const [radius, setRadius] = useState<number>(10)
   const [hover, setHover] = useState<{ q: number; r: number } | null>(null)
@@ -23,25 +23,51 @@ export function GridPanel({ sessionId, worldName, onLog }: { sessionId: string |
     return () => obs.disconnect()
   }, [])
 
+  // Function to reload cells from server
+  const reloadCells = async () => {
+    if (!sessionId || !worldName) { setCells([]); return }
+    try {
+      onLog(`Loading world ${worldName} metadata…`)
+      const ws = await listWorlds(sessionId)
+      const meta = ws.find(w => w.name === worldName)
+      if (meta) setRadius(meta.radius)
+      onLog(`Loading cells for ${worldName}…`)
+      const currentCells = await cellsCurrent(sessionId)
+      setCells(currentCells)
+      onLog(`Loaded ${currentCells.length} active cells`)
+    } catch (e: any) {
+      onLog('Error loading cells: ' + (e?.message || e))
+    }
+  }
+
+  // Initial load when session/world changes
   useEffect(() => {
-    (async () => {
-      if (!sessionId || !worldName) { setCells([]); return }
-      try {
-        onLog(`Loading world ${worldName} metadata…`)
-        const ws = await listWorlds(sessionId)
-        const meta = ws.find(w => w.name === worldName)
-        if (meta) setRadius(meta.radius)
-                onLog(`Loading cells for ${worldName}…`)
-        const currentCells = await cellsCurrent(sessionId)
-        setCells(currentCells)
-        onLog(`Loaded ${currentCells.length} active cells`)
-      } catch (e: any) {
-        onLog('Error loading cells: ' + (e?.message || e))
-      }
-    })()
+    reloadCells()
   }, [sessionId, worldName])
 
+  // Refresh when trigger changes (after step or history navigation)
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      reloadCells()
+    }
+  }, [refreshTrigger])
+
   const cellMap = useMemo(() => new Map<string, Cell>(cells.map(c => [`${c[0]},${c[1]}`, c])), [cells])
+
+  // Parse available states from rules text
+  const availableStates = useMemo(() => {
+    const states = new Set<string>(['_']) // Always include empty state
+    if (rulesText) {
+      // Extract states from rules like "_[a]3[_]3 => a" and "a[a]2[_|a][_]3 => a"
+      const matches = rulesText.match(/[a-zA-Z_]/g) || []
+      matches.forEach(state => {
+        if (state !== '_') states.add(state)
+      })
+    }
+    // Default to 'a' if no other states found
+    if (states.size === 1) states.add('a')
+    return Array.from(states).sort()
+  }, [rulesText])
 
   const hexSize = 14
   const S = hexSize
@@ -61,9 +87,8 @@ export function GridPanel({ sessionId, worldName, onLog }: { sessionId: string |
   }
 
   function cycleState(s: string): string {
-    const order = ['_', 'x']
-    const i = order.indexOf(s)
-    return order[(i + 1) % order.length]
+    const i = availableStates.indexOf(s)
+    return availableStates[(i + 1) % availableStates.length]
   }
 
   function pickCellFromEvent(ev: React.MouseEvent<SVGSVGElement, MouseEvent>): { q: number; r: number } | null {
@@ -105,17 +130,30 @@ export function GridPanel({ sessionId, worldName, onLog }: { sessionId: string |
   }
 
   async function onCanvasClick(ev: React.MouseEvent<SVGSVGElement, MouseEvent>) {
+    ev.preventDefault() // Prevent context menu
     if (!sessionId) return
     const picked = pickCellFromEvent(ev)
     if (!picked) return
     const key = `${picked.q},${picked.r}`
     const cur = cellMap.get(key) || [picked.q, picked.r, '_', null]
-    const nextState = cycleState(cur[2])
+    
+    let nextState = cur[2]
+    let nextDirection = cur[3]
+    
+    if (ev.button === 0) { // Left click - cycle state
+      nextState = cycleState(cur[2])
+      // Reset direction when state changes to '_'
+      if (nextState === '_') nextDirection = null
+    } else if (ev.button === 2) { // Right click - cycle direction
+      if (cur[2] !== '_') { // Only cycle direction for non-empty cells
+        nextDirection = nextDirection === null ? 0 : (nextDirection + 1) % 6
+      }
+    }
+    
     try {
-      await cellsSet(sessionId, picked.q, picked.r, nextState, cur[3])
-      const updated = new Map(cellMap)
-      updated.set(key, [picked.q, picked.r, nextState, cur[3]])
-      setCells(Array.from(updated.values()))
+      await cellsSet(sessionId, picked.q, picked.r, nextState, nextDirection)
+      // Reload cells from server to get latest state
+      await reloadCells()
     } catch (e: any) {
       onLog('Error setting cell: ' + (e?.message || e))
     }
@@ -148,6 +186,7 @@ export function GridPanel({ sessionId, worldName, onLog }: { sessionId: string |
           preserveAspectRatio="xMidYMid meet"
           style={{ background: '#fff', display: 'block', cursor: 'pointer' }}
           onMouseDown={onCanvasClick}
+          onContextMenu={(e) => e.preventDefault()} // Prevent context menu
           onMouseMove={onCanvasMove}
           onMouseLeave={onCanvasLeave}
         >
@@ -165,9 +204,45 @@ export function GridPanel({ sessionId, worldName, onLog }: { sessionId: string |
             const key = `${q},${r}`
             const c = cellMap.get(key)
             const state = c ? c[2] : '_'
-            const fill = state === '_' ? '#222' : '#e66'
+            const direction = c ? c[3] : null
+            
+            // Color mapping for different states
+            const getStateColor = (state: string) => {
+              if (state === '_') return '#222'
+              if (state === 'a') return '#e66'
+              // Generate colors for other states
+              const colors = ['#66e', '#6e6', '#ee6', '#e6e', '#6ee']
+              const index = availableStates.indexOf(state) - 1 // -1 because '_' is at index 0
+              return colors[index % colors.length] || '#888'
+            }
+            
+            const fill = getStateColor(state)
             const isHover = hover && hover.q === q && hover.r === r
-            return <polygon key={key} points={poly} fill={fill} stroke={isHover ? '#ffd54a' : '#444'} strokeWidth={isHover ? 2 : 1} vectorEffect="non-scaling-stroke" />
+            
+            return (
+              <g key={key}>
+                <polygon 
+                  points={poly} 
+                  fill={fill} 
+                  stroke={isHover ? '#ffd54a' : '#444'} 
+                  strokeWidth={isHover ? 2 : 1} 
+                  vectorEffect="non-scaling-stroke" 
+                />
+                {state !== '_' && (
+                  <text 
+                    x={x} 
+                    y={y} 
+                    textAnchor="middle" 
+                    dominantBaseline="middle" 
+                    fontSize={S * 0.8} 
+                    fill="white" 
+                    fontWeight="bold"
+                  >
+                    {state}{direction !== null ? direction : ''}
+                  </text>
+                )}
+              </g>
+            )
           })
         )}
         </svg>

@@ -115,28 +115,27 @@ export function WorldsPanel({ sessionId, onLog, onWorldChange }: { sessionId: st
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 420 }}>
-      <h3 style={{ margin: 0 }}>Worlds</h3>
-      <div style={{ display: 'flex', gap: 8, margin: '8px 0' }}>
-        <button onClick={newWorld} disabled={!sessionId || busy}>New</button>
-        <button onClick={renameCur} disabled={!sessionId || busy || !currentWorld}>Rename</button>
-        <button onClick={deleteCur} disabled={!sessionId || busy || !currentWorld} style={{ background: '#fdd' }}>Delete</button>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+        <button onClick={newWorld} disabled={!sessionId || busy} style={{ fontSize: '11px', padding: '3px 6px' }}>New</button>
+        <button onClick={renameCur} disabled={!sessionId || busy || !currentWorld} style={{ fontSize: '11px', padding: '3px 6px' }}>Rename</button>
+        <button onClick={deleteCur} disabled={!sessionId || busy || !currentWorld} style={{ background: '#fdd', fontSize: '11px', padding: '3px 6px' }}>Delete</button>
       </div>
-      <div style={{ border: '1px solid #ccc', borderRadius: 4, maxHeight: 220, overflow: 'auto' }}>
+      <div style={{ border: '1px solid #ccc', borderRadius: 4, flex: 1, overflow: 'auto', minHeight: 0 }}>
         {worlds.map(w => (
           <div key={w.name}
                onClick={() => switchWorld(w.name)}
-               style={{ padding: 6, cursor: 'pointer', background: currentWorld === w.name ? '#eef' : 'transparent', display: 'flex', justifyContent: 'space-between' }}>
+               style={{ padding: 4, cursor: 'pointer', background: currentWorld === w.name ? '#eef' : 'transparent', display: 'flex', justifyContent: 'space-between', fontSize: '11px', borderBottom: '1px solid #eee' }}>
             <span>{w.name}</span>
             <span style={{ color: '#666' }}>R={w.radius}</span>
           </div>
         ))}
         {(!worlds || worlds.length === 0) && (
-          <div style={{ padding: 8, color: '#888' }}>(no worlds)</div>
+          <div style={{ padding: 6, color: '#888', fontSize: '11px' }}>(no worlds)</div>
         )}
       </div>
-      <div style={{ marginTop: 8 }}>
-        <button onClick={refresh} disabled={!sessionId || busy}>Refresh</button>
+      <div style={{ marginTop: 6, flexShrink: 0 }}>
+        <button onClick={refresh} disabled={!sessionId || busy} style={{ fontSize: '11px', padding: '3px 6px' }}>Refresh</button>
       </div>
     </div>
   )
