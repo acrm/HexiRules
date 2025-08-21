@@ -8,21 +8,21 @@ type Props = {
 
 const PRESETS: { key: string; name: string; text: string }[] = [
   {
-    key: 'b3s23',
-    name: 'B3/S23',
-    text: [
-  "_[a]3[_]3 => a",
-  "a[a]2[_|a][_]3 => a",
-  "a[_|a][_]5 | a[a]4[_|a][_|a] => _",
-    ].join('\n'),
-  },
-  {
     key: 'tree_apple',
     name: 'Tree & Apple',
     text: [
-      "t[-a] => t%",
-      "_[t.] => a", 
-      "t%[a] => t",
+      't[-a] => t%',
+      '_[t.] => a',
+      't%[a] => t',
+    ].join('\n'),
+  },
+  {
+    key: 'b3s23',
+    name: 'B3/S23',
+    text: [
+      '_[a]3[_]3 => a',
+      'a[a]2[_|a][_]3 => a',
+      'a[_|a][_]5 | a[a]4[_|a][_|a] => _',
     ].join('\n'),
   },
 ]

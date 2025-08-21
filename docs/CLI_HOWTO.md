@@ -6,10 +6,11 @@ without the GUI.
 ## Starting the shell
 
 ```
-python src/cli.py --rule B3/S23 --radius 3
+python src/cli.py --rule "t[-a] => t%; _[t.] => a; t%[a] => t" --radius 3
 ```
 
-Use `--rule` to choose the starting rule and `--radius` for grid size.
+Use `--rule` to choose the starting rule and `--radius` for grid size. Presets
+such as `b3s23` expand to equivalent HexiDirect rules.
 
 ## Core commands
 

@@ -5,6 +5,10 @@
 - Format changed files with `python -m black`.
 - Run `HEXIRULES_NO_GUI=1 python tools/check_quality.py`.
 
+## Functional requirements
+- Describe new features in `docs/FUNCTIONAL_REQUIREMENTS.md`.
+- Implement unit and end-to-end tests verifying each requirement.
+
 ## Code style
 - Python 3.8+ only; no external dependencies.
 - Minimal diffs; do not reformat or rename unrelated code.
@@ -46,7 +50,8 @@ Heuristics are intentionally lightweight (no external deps). Adjust allowlists i
 
 ## Repository layout
 - GUI code lives in `src/gui.py`.
-- Conway engine in `src/automaton.py`; HexiDirect engine in `src/hex_rules.py`.
+- ASCII control panel in `src/ascii_ui.py`.
+- HexiDirect engine in `src/domain/hexidirect/`.
 - Tests under `tests/` named `test_*.py`.
 - Documentation under `docs/` (`*.md`); strict rule lists in `*.txt`.
 - Scripts and helper tools in `tools/`.

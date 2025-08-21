@@ -11,7 +11,7 @@ import cmd
 import re
 from typing import Iterable, Sequence
 
-from hex_rules import HexAutomaton
+from domain.hexidirect.rule_engine import HexAutomaton
 from version import __version__
 
 
@@ -148,10 +148,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description=f"HexiRules v{__version__} - Hexagonal Cellular Automaton CLI (HexiDirect)"
     )
-    # Default to B3/S23 via preset
+    # Default to a simple HexiDirect rule set
     parser.add_argument(
         "--rule",
-        default="B3/S23",
+        default="t[-a] => t%; _[t.] => a; t%[a] => t",
         help="HexiDirect rules (use ';' or newlines to separate)",
     )
     parser.add_argument("--radius", type=int, default=3, help="Grid radius")

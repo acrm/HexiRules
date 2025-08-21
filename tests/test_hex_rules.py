@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
-from hex_rules import HexAutomaton, HexRule, HexCell
+from domain.hexidirect.rule_engine import HexAutomaton
+from domain.hexidirect.rule_parser import HexRule
+from domain.hexidirect.models import HexCell
 
 
 class TestHexRules(unittest.TestCase):
@@ -138,7 +140,10 @@ class TestHexRules(unittest.TestCase):
         selections = self.automaton.select_applicable_rules()
         self.assertEqual(len(selections[(0, 0)]), 2)
 
-        with patch("hex_rules.random.choice", side_effect=lambda seq: seq[0]):
+        with patch(
+            "domain.hexidirect.rule_engine.random.choice",
+            side_effect=lambda seq: seq[0],
+        ):
             self.automaton.apply_random_rules(selections)
 
         self.assertEqual(self.automaton.get_cell(0, 0).state, "b")
@@ -148,7 +153,10 @@ class TestHexRules(unittest.TestCase):
         # Explicitly craft a rule without source direction; expansion will create 6 target variants
         self.automaton.set_rules(["a => b%2"])
         self.automaton.set_cell(0, 0, "a", None)
-        with patch("hex_rules.random.choice", side_effect=lambda seq: seq[0]):
+        with patch(
+            "domain.hexidirect.rule_engine.random.choice",
+            side_effect=lambda seq: seq[0],
+        ):
             self.automaton.step()
         # Deterministically first variant selected -> b1
         cell = self.automaton.get_cell(0, 0)

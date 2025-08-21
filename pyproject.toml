@@ -36,10 +36,8 @@ hexirules-cli = "cli:main"
 [tool.setuptools]
 package-dir = {"" = "src"}
 py-modules = [
-  "automaton",
   "cli",
   "gui",
-  "hex_rules",
   "hex_examples",
   "version",
   "main",

@@ -1,10 +1,5 @@
 ## Grid
 - The system shall represent a hexagonal grid of radius R using axial coordinates (q, r) with |q + r| <= R.
-## Conway Engine
-- The system shall support Conway-style totalistic rules in B../S.. format.
-- The system shall parse Conway rule strings and apply them during simulation steps.
-- The system shall allow toggling, setting, and clearing cell states in Conway mode.
-- The system shall advance the Conway automaton by one step and update all cells according to the rule.
 ## HexiDirect Engine
 - The system shall support a HexiDirect symbolic rules engine.
 - The system shall represent cells as symbolic states including "_" for empty and letter states.
@@ -23,33 +18,36 @@
 - The system shall evaluate rule conditions against the six neighbors in clockwise order.
 - The system shall process rules in two substeps: `select_applicable_rules` gathers all matching rules for each cell, and `apply_random_rules` randomly selects one rule to apply to each cell.
 - The system shall apply at most one resulting transformation per cell per step.
+- The system shall expand rule presets including `b3s23` into equivalent HexiDirect rules.
 - The system shall support bracket repetition `[state]N` and in-bracket alternatives such as `[a|_]`.
 ## Graphical User Interface
 - The system shall provide a graphical user interface.
-- The system shall present stacked control sections: Worlds, Cells, Rules, Run, and Log.
 - The system shall render the hex grid on a canvas that scales to fill the available space.
+- The system shall expose controls through an ASCII panel.
 ## Worlds
 - The system shall support creating, selecting, and deleting worlds.
-- The system shall allow per-world configuration of radius, mode (Conway or HexiDirect), and rules.
+- The system shall allow per-world configuration of radius and rules.
 ## Persistence
-- The system shall save a world to JSON including radius, mode, rules, and non-empty cells.
-- The system shall load a world from JSON and restore radius, mode, rules, and cells.
+- The system shall save a world to JSON including radius, rules, and non-empty cells.
+- The system shall load a world from JSON and restore radius, rules, and cells.
 ## Editing and Interaction
-- The system shall allow interactive cell editing according to the active mode.
+- The system shall allow interactive cell editing.
 - The system shall allow left-click to cycle state in HexiDirect mode.
 - The system shall allow right-click to cycle direction in HexiDirect mode.
 - The system shall allow middle-click to clear a cell in HexiDirect mode.
-- The system shall allow left-click to toggle cells in Conway mode.
 - The system shall allow editing rules in a multi-line text area.
-- The system shall allow switching between Conway and HexiDirect modes.
 - The system shall clear all cells on request.
 - The system shall randomize a subset of cells on request.
+
+## ASCII Control Panel
+- The system shall display a text-based control panel of fixed width.
+- The panel shall allow entering rules.
+- The panel shall allow advancing the automaton by one step.
+- The panel shall allow clearing all cells.
 
 ## Execution and Status
 - The system shall execute a single simulation step on demand.
 - The system shall display status including world name, active cell count, and a compact rules summary.
-- The system shall log rule parsing, expansion, applications, and step summaries in a scrollable log.
-- The system shall allow clearing the log.
 
 ## Command-Line Interface
 - The system shall provide a command-line interface for running the automaton.

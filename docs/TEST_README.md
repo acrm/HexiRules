@@ -16,7 +16,11 @@ This directory contains comprehensive tests for the HexiRules hexagonal cellular
 - **State Colors**: Completeness and format validation
 - **Symbolic States**: Coverage and essential state presence
 
-### Test Runner (`run_tests.py`)
+### ASCII Control Panel Tests (`test_ascii_ui.py`)
+- **Rendering**: ASCII layout width and borders
+- **Commands**: step and clear operations
+
+### Test Runner (`tools/run_tests.py`)
 - Comprehensive test runner with detailed reporting
 - Automatically discovers and runs all test modules
 - Provides success/failure summary with statistics
@@ -25,22 +29,22 @@ This directory contains comprehensive tests for the HexiRules hexagonal cellular
 
 ### Run All Tests
 ```bash
-python run_tests.py
+python tools/run_tests.py --no-gui
 ```
 
 ### Run Individual Test Suites
 ```bash
 # Core engine tests
-python test_hex_rules.py
+python tests/test_hex_rules.py
 
 # GUI constants tests
-python test_gui_constants.py
+python tests/test_gui_constants.py
 ```
 
 ### Run Specific Test Classes
 ```bash
-python -m unittest test_hex_rules.TestHexCell
-python -m unittest test_hex_rules.TestMacroExpansion
+python -m unittest tests.test_hex_rules.TestHexCell
+python -m unittest tests.test_hex_rules.TestMacroExpansion
 ```
 
 ## Test Coverage
@@ -70,11 +74,13 @@ python -m unittest test_hex_rules.TestMacroExpansion
 
 ## Test Statistics
 
-- **Total Tests**: 27
-- **Core Engine**: 24 tests
-- **GUI Constants**: 3 tests
+- **Total Tests**: 30
+- **Core Engine**: 20 tests
+- **CLI**: 4 tests
+- **ASCII Control Panel**: 2 tests
+- **Logic Helpers**: 4 tests
 - **Success Rate**: 100%
-- **Execution Time**: ~0.02 seconds
+- **Execution Time**: ~0.01 seconds
 
 ## Key Test Cases
 

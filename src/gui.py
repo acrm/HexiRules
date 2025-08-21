@@ -1,32 +1,19 @@
 #!/usr/bin/env python3
-"""
-HexiRules GUI Module (HexiDirect-only)
-
-Responsive multi-panel GUI: worlds, cells, rules, run, and log.
-"""
+"""Tk grid renderer with ASCII control panel."""
 
 import tkinter as tk
-from tkinter import filedialog, simpledialog, messagebox
-from typing import Any, Dict, List, Tuple, Optional, cast
+from typing import Any, Dict, List, Tuple, Optional
 import math
-import json
-import os
-from hex_rules import HexAutomaton
+import threading
+
+from domain.hexidirect.rule_engine import HexAutomaton
 from application.world_service import WorldService
-from ui import (
-    build_world_tab,
-    build_cells_tab,
-    build_rules_tab,
-    build_run_tab,
-    build_log_tab,
-    build_history_panel,
-)
+from ascii_ui import AsciiControlPanel
 
 # Configuration
 DEFAULT_RADIUS = 8
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 800
-CONTROLS_WIDTH = WINDOW_WIDTH // 3  # Left third for controls
 
 # Available symbolic states for HexiDirect mode
 SYMBOLIC_STATES = ["_", "a", "b", "c", "x", "t", "y", "z"]
@@ -49,18 +36,16 @@ class HexiRulesGUI:
         self.root = tk.Tk()
         self.root.title("HexiRules - Hexagonal Cellular Automaton")
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-        # GUI state
-        # HexiDirect-only (kept for API compatibility with builders)
-        self.is_hexidirect = tk.BooleanVar(value=True)
         self.hex_items = {}
 
         # Per-canvas dynamic layout
-        self.canvas = None  # will be created in create_grid_panel
+        self.canvas = None
         self.canvas_center = (0, 0)
         self.cell_size = 15.0
 
         # Worlds management delegated to controller
         self.controller = WorldService()
+        self.ascii_panel = AsciiControlPanel(self.controller, self.update_display)
 
         self.create_widgets()
         self._init_default_world()
@@ -89,24 +74,8 @@ class HexiRulesGUI:
     def _select_world(self, name: str) -> None:
         if name not in self.controller.worlds:
             return
-        world = self.controller.select_world(name)
-        # Sync UI
-        self.is_hexidirect.set(True)
-        self.rule_text.delete("1.0", tk.END)
-        self.rule_text.insert("1.0", getattr(world, "rules_text", ""))
-        # Sync rule label with current mode
-        self.rule_label.config(text="Enter HexiDirect rules (e.g., a[b] => c):")
-        # Select in listbox
-        if hasattr(self, "world_list"):
-            try:
-                idx = list(self.controller.worlds).index(name)
-                self.world_list.selection_clear(0, tk.END)
-                self.world_list.selection_set(idx)
-                self.world_list.see(idx)
-            except Exception:
-                pass
+        self.controller.select_world(name)
         self.update_display()
-        self._refresh_history()
 
     def _get_current_world(self) -> Dict[str, Any]:
         # Ask controller for current world
@@ -119,80 +88,13 @@ class HexiRulesGUI:
 
     # -------- UI construction --------
     def create_widgets(self) -> None:
-        """Create all GUI widgets."""
-        # Main container split left/right
-        main_frame = tk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Left side - Controls
-        self.create_controls_panel(main_frame)
-
-        # Right side - Grid Canvas (fills all space)
-        self.create_grid_panel(main_frame)
-
-    def create_controls_panel(self, parent) -> None:
-        """Create the controls panel on the left; Worlds and Cells share the top row."""
-        controls_frame = tk.Frame(parent, width=CONTROLS_WIDTH, bg="lightblue")
-        controls_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
-        controls_frame.pack_propagate(False)
-
-        # Grid weights and minimum sizes for stable layout
-        # Rows: 0=Worlds+Cells (side-by-side), 1=History, 2=Rules, 3=Run
-        controls_frame.grid_rowconfigure(0, weight=2, minsize=160)
-        controls_frame.grid_rowconfigure(1, weight=3, minsize=160)
-        controls_frame.grid_rowconfigure(2, weight=3, minsize=160)
-        controls_frame.grid_rowconfigure(3, weight=0, minsize=60)
-        # Two columns for row 0 (Worlds left, Cells right). Others span both.
-        controls_frame.grid_columnconfigure(0, weight=2, minsize=220)
-        controls_frame.grid_columnconfigure(1, weight=1, minsize=180)
-
-        # Worlds (left)
-        world_section = tk.LabelFrame(controls_frame, text="Worlds", bg="lightblue")
-        world_section.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        self.world_list, self.world_info = build_world_tab(
-            world_section,
-            self.on_world_select,
-            self.new_world,
-            self.load_world,
-            self.save_world,
-            self.delete_world,
-            self.rename_world,
-        )
-
-        # Cells (right of Worlds)
-        cells_section = tk.LabelFrame(controls_frame, text="Cells", bg="lightblue")
-        cells_section.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-        build_cells_tab(cells_section, self.clear, self.randomize)
-
-        # Rules (full width, placed above History)
-        rules_section = tk.LabelFrame(controls_frame, text="Rules", bg="lightblue")
-        rules_section.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
-        self.rule_label, self.rule_text = build_rules_tab(
-            rules_section, self.is_hexidirect, self.on_mode_change
-        )
-        # Default rule
-        self.rule_text.insert("1.0", "t[-a] => t%\n_[t.] => a\nt%[a] => t")
-
-        # History (full width, now below Rules) with Progress button
-        history_section = tk.LabelFrame(controls_frame, text="History", bg="lightblue")
-        history_section.grid(
-            row=2, column=0, columnspan=2, sticky="nsew", padx=4, pady=4
-        )
-        self.history_list, self.history_log = build_history_panel(
-            history_section,
-            self.on_history_select,
-            self.step,
-            self.on_history_prev,
-            self.on_history_next,
-        )
-
-        # No global log text widget; Step Logs live in History panel now
-        self.log_text = None
+        """Create canvas only."""
+        self.create_grid_panel(self.root)
 
     def create_grid_panel(self, parent) -> None:
-        """Create the grid panel on the right side."""
+        """Create the grid panel."""
         grid_frame = tk.Frame(parent, bg="lightgray")
-        grid_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        grid_frame.pack(fill=tk.BOTH, expand=True)
 
         # Canvas for hexagonal grid - fills available space, resizes with window
         self.canvas = tk.Canvas(grid_frame, bg="lightgray", highlightthickness=0)
@@ -311,101 +213,6 @@ class HexiRulesGUI:
                     hex_id = self.draw_hex(x, y, color, cell.state, cell.direction)
                     self.hex_items[(q, r)] = hex_id
 
-    # No global status bar; History panel holds per-step logs.
-
-    # -------- World actions --------
-    def on_world_select(self, _event: Any) -> None:
-        sel = self.world_list.curselection()
-        if not sel:
-            return
-        name = self.world_list.get(sel[0])
-        self._select_world(name)
-
-    def new_world(self) -> None:
-        name = simpledialog.askstring(
-            "New World", "Enter world name:", parent=self.root
-        )
-        if not name:
-            return
-        try:
-            radius = int(
-                simpledialog.askstring(
-                    "New World", "Enter radius (e.g., 8):", parent=self.root
-                )
-                or DEFAULT_RADIUS
-            )
-        except Exception:
-            radius = DEFAULT_RADIUS
-        default_rules = "t[-a] => t%\n_[t.] => a\nt%[a] => t"
-        self._create_world(name, radius, True, default_rules)
-        self._select_world(name)
-
-    def delete_world(self) -> None:
-        sel = self.world_list.curselection()
-        if not sel:
-            return
-        name = self.world_list.get(sel[0])
-        if messagebox.askyesno("Delete World", f"Delete '{name}'?", parent=self.root):
-            try:
-                del self.controller.worlds[name]
-            except KeyError:
-                pass
-            self.world_list.delete(sel[0])
-            if self.controller.worlds:
-                self._select_world(next(iter(self.controller.worlds.keys())))
-            else:
-                self._init_default_world()
-
-    def save_world(self) -> None:
-        world = self._get_current_world()
-        # Sync rules and mode from UI and delegate persistence
-        is_hexidirect = bool(self.is_hexidirect.get())
-        rules_text = self.rule_text.get("1.0", tk.END).strip()
-        path = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            filetypes=[("HexiRules World", "*.json")],
-            initialfile=f"{getattr(world, 'name', 'world')}.json",
-        )
-        if not path:
-            return
-        try:
-            self.controller.save_world_to_file(path, is_hexidirect, rules_text)
-            self.log_message(f"Saved world to {os.path.basename(path)}")
-        except Exception as e:
-            self.log_message(f"Save failed: {e}")
-
-    def load_world(self) -> None:
-        path = filedialog.askopenfilename(
-            filetypes=[("HexiRules World", "*.json"), ("All", "*.*")]
-        )
-        if not path:
-            return
-        try:
-            name = self.controller.load_world_from_file(path)
-            # Ensure it's listed and selected
-            if name not in self.world_list.get(0, tk.END):
-                self.world_list.insert(tk.END, name)
-            self._select_world(name)
-            self.log_message(f"Loaded world from {os.path.basename(path)}")
-            self._refresh_history()
-        except Exception as e:
-            self.log_message(f"Load failed: {e}")
-
-    # -------- Mode and editing --------
-    @property
-    def current_automaton(self):
-        world = self._get_current_world()
-        return world.hex
-
-    def on_mode_change(self) -> None:
-        """Handle mode toggle (deprecated; always HexiDirect)."""
-        world = self._get_current_world()
-        self.is_hexidirect.set(True)
-        self.rule_label.config(text="Enter HexiDirect rules (e.g., a[b] => c):")
-        if not self.rule_text.get("1.0", tk.END).strip():
-            self.rule_text.insert("1.0", "t[-a] => t%\n_[t.] => a\nt%[a] => t")
-        self.update_display()
-
     def on_left_click(self, event: Any) -> None:
         q, r = self.get_hex_coordinates(event.x, event.y)
         world = self._get_current_world()
@@ -446,136 +253,21 @@ class HexiRulesGUI:
             world.hex.set_cell(q, r, "_")
             self.update_display()
 
-    # -------- Logging and run --------
-    def clear_log(self) -> None:
-        # No global log; clear the History log area if present
-        if hasattr(self, "history_log") and self.history_log is not None:
-            self.history_log.delete("1.0", tk.END)
-
-    def log_message(self, message: str) -> None:
-        # Route miscellaneous messages to the History log area if present
-        if hasattr(self, "history_log") and self.history_log is not None:
-            self.history_log.insert(tk.END, message + "\n")
-            self.history_log.see(tk.END)
-            self.root.update_idletasks()
-
     def step(self) -> None:
-        rules_text = self.rule_text.get("1.0", tk.END).strip()
-        if not rules_text:
-            return
-        logs = self.controller.step(rules_text)
-        for line in logs:
-            self.log_message(line)
+        world = self.controller.get_current_world()
+        self.controller.step(world.rules_text)
         self.update_display()
-        self._refresh_history()
-
-    # -------- History & rename helpers --------
-    def _refresh_history(self) -> None:
-        if not hasattr(self, "history_list"):
-            return
-        self.history_list.delete(0, tk.END)
-        steps = []
-        try:
-            steps = self.controller.history_list()
-        except Exception:
-            pass
-        for idx, cnt in steps:
-            self.history_list.insert(tk.END, f"Step {idx}: {cnt} cells")
-        if hasattr(self, "history_log"):
-            self.history_log.delete("1.0", tk.END)
-        # Ensure a selection is always present
-        try:
-            cur = self.controller.history_current_index()
-            if cur >= 0 and self.history_list.size() > 0:
-                self.history_list.selection_clear(0, tk.END)
-                self.history_list.selection_set(cur)
-                self.history_list.see(cur)
-                # populate logs for the selected step
-                logs = self.controller.history_get_logs(cur)
-                if hasattr(self, "history_log"):
-                    self.history_log.insert("1.0", "\n".join(logs))
-        except Exception:
-            pass
-
-    def on_history_select(self, _event: Any) -> None:
-        sel = self.history_list.curselection()
-        if not sel:
-            return
-        index = sel[0]
-        logs = self.controller.history_get_logs(index)
-        self.history_log.delete("1.0", tk.END)
-        self.history_log.insert("1.0", "\n".join(logs))
-        self.controller.history_go(index)
-        self.update_display()
-
-    def on_history_prev(self) -> None:
-        self.controller.history_prev()
-        self._refresh_history()
-        self.update_display()
-
-    def on_history_next(self) -> None:
-        self.controller.history_next()
-        self._refresh_history()
-        self.update_display()
-
-    def rename_world(self) -> None:
-        sel = self.world_list.curselection()
-        if not sel:
-            return
-        old_name = self.world_list.get(sel[0])
-        new_name = simpledialog.askstring(
-            "Rename World", f"Enter new name for '{old_name}':", parent=self.root
-        )
-        if not new_name:
-            return
-        try:
-            self.controller.rename_world(old_name, new_name)
-        except Exception as e:
-            messagebox.showerror("Rename failed", str(e), parent=self.root)
-            return
-        self.world_list.delete(sel[0])
-        self.world_list.insert(sel[0], new_name)
-        self.world_list.selection_set(sel[0])
-        self._select_world(new_name)
-
-    def log_rule_applications(self) -> None:
-        self.log_message("Analyzing rule applications:")
-        world = self._get_current_world()
-        checked_count = 0
-        match_count = 0
-        for (q, r), cell in world.hex.grid.items():
-            for rule in world.hex.rules:
-                checked_count += 1
-                if rule.source_state == cell.state:
-                    src_dir_ok = (
-                        (getattr(rule, "source_random_direction", False))
-                        or (rule.source_direction is None and cell.direction is None)
-                        or (rule.source_direction == cell.direction)
-                    )
-                    if src_dir_ok and world.hex.matches_condition(cell, q, r, rule):
-                        match_count += 1
-                        result = world.hex.apply_rule(cell, q, r, rule)
-                        if result and result != cell:
-                            self.log_message(
-                                f"  Rule '{rule.rule_str}' applies to ({q},{r}):{cell} -> {result}"
-                            )
-        self.log_message(
-            f"Checked {checked_count} rule-cell combinations, found {match_count} matches"
-        )
-        self.log_message(
-            "Note: When multiple rules from same macro match, one is chosen randomly"
-        )
 
     def clear(self) -> None:
         self.controller.clear()
         self.update_display()
 
     def randomize(self) -> None:
-        # Use controller to randomize states
         self.controller.randomize(SYMBOLIC_STATES, p=0.3)
         self.update_display()
 
     def run(self) -> None:
+        threading.Thread(target=self.ascii_panel.run, daemon=True).start()
         self.root.mainloop()
 
 

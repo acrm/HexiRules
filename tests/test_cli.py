@@ -1,9 +1,10 @@
 import io
 import io
 import unittest
+import io
 
 from cli import HexCLI
-from hex_rules import HexAutomaton
+from domain.hexidirect.rule_engine import HexAutomaton
 
 
 def run_cmd(cli: HexCLI, command: str) -> str:
@@ -16,7 +17,7 @@ def run_cmd(cli: HexCLI, command: str) -> str:
 class TestCLI(unittest.TestCase):
     def setUp(self) -> None:
         automaton = HexAutomaton(radius=3)
-        automaton.set_rules(["B3/S23"])
+        automaton.set_rules(["a => _"])
         self.cli = HexCLI(automaton, stdout=io.StringIO())
 
     def test_rule_management(self) -> None:

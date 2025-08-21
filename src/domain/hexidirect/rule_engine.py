@@ -48,16 +48,12 @@ class HexAutomaton:
     @staticmethod
     def _expand_presets(rule_str: str) -> List[str]:
         """Return preset HexiDirect rules or passthrough."""
-        presets: Dict[str, List[str]] = {
-            "B3/S23": [
+        if rule_str.lower() == "b3s23":
+            return [
                 "_[a]3[_]3 => a",
-                "a[a]2[a|_][_]3 => a",
+                "a[a]2[_|a][_]3 => a",
                 "a[_|a][_]5 | a[a]4[_|a][_|a] => _",
             ]
-        }
-        key = rule_str.strip().upper()
-        if key in presets:
-            return presets[key]
         return [rule_str]
 
     def _expand_macros(self, rule_str: str) -> List[str]:
