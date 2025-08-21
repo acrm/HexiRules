@@ -2,8 +2,7 @@
 """
 HexiRules - Hexagonal Cellular Automaton
 
-Main entry point for the HexiRules application.
-Supports both Conway-style totalistic rules and HexiDirect symbolic rules.
+Main entry point for the HexiRules application using HexiDirect symbolic rules.
 
 Also exposes a minimal HexCanvas helper used by geometry-focused tests.
 """

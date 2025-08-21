@@ -1,6 +1,6 @@
 # HexiRules 🔬
 
-A hexagonal cellular automaton simulator with an interactive GUI, supporting both classic Conway-style totalistic rules and a custom HexiDirect symbolic rule system with directions, macros, and conditions.
+A hexagonal cellular automaton simulator with a Tkinter grid and an ASCII control panel, using a custom HexiDirect symbolic rule system with directions, macros, and conditions.
 
 ![Python](https://img.shields.io/badge/python-v3.8+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -10,14 +10,8 @@ A hexagonal cellular automaton simulator with an interactive GUI, supporting bot
 ## ✨ Features
 
 - Hexagonal grid with 6 neighbors per cell
-- Dual rule engines:
-   - Conway-style totalistic rules: `B../S..`
-   - HexiDirect symbolic rules with directions, macros (%), conditions `[ ... ]`, negation, and pointing shorthand
-- Interactive GUI (Tkinter):
-   - Stacked left panels (Worlds, Cells, Rules, Run, Log) + responsive canvas that scales to fill the window
-   - Per-world radius, mode (Conway/HexiDirect), JSON save/load
-   - HexiDirect editing: Left=cycle state, Right=cycle direction, Middle=clear; Conway: Left toggles
-- Logging panel that explains rule expansion and applications during a step
+- HexiDirect symbolic rules with directions, macros (%), conditions `[ ... ]`, negation, and pointing shorthand
+- Tkinter grid renderer with an ASCII control panel
 - Each step first selects all matching rules per cell, then applies one at random
 - Unified quality checker (MyPy, Black check, unit tests)
 
@@ -48,15 +42,10 @@ python tools/check_quality.py
 
 ## 🎮 How to Use
 
-1. Pick or create a World (left panel). Each world has its own radius, mode, and rules.
-2. Choose Mode in Rules panel: Conway or HexiDirect (default).
-3. Edit rules:
-   - Conway: `B3/S23`
-   - HexiDirect: multi-line symbolic rules like `t[-a] => t%`, `_[t.] => a`, `t%[a] => t`
-4. Edit cells in the canvas:
-   - HexiDirect: Left=cycle state; Right=cycle direction (1..6,None); Middle=clear
-   - Conway: Left toggles alive/dead
-5. Click Step to apply rules once. Use Save/Load to persist worlds as JSON.
+1. Launch the GUI: `python src/main.py`. The grid appears in a window and the control panel runs in the terminal.
+2. Use the ASCII panel to manage worlds, edit rules, and step the simulation.
+3. Edit cells in the canvas: Left=cycle state; Right=cycle direction (1..6,None); Middle=clear.
+4. Use Step to apply rules once. Save and load worlds as JSON through the ASCII panel.
 
 ## 🧪 Development
 
@@ -82,8 +71,8 @@ HexiRules/
 ├── src/
 │   ├── main.py              # Application entry (creates GUI)
 │   ├── gui.py               # Tkinter GUI
-│   ├── automaton.py         # Conway-style engine
-│   ├── hex_rules.py         # HexiDirect symbolic engine
+│   ├── ascii_ui.py          # ASCII control panel
+│   ├── domain/hexidirect/   # HexiDirect symbolic engine
 │   ├── hex_examples.py      # Example rule sets
 │   ├── cli.py               # CLI entry
 │   └── version.py
@@ -109,7 +98,6 @@ Traditional cellular automata use square grids where each cell has 8 neighbors. 
 
 ## 🎯 Rule Examples
 
-- Conway examples: `B3/S23`, `B2/S34`, `B36/S23`
 - HexiDirect examples:
    - `t[-a] => t%` (t persists, possibly reorients)
    - `_[t.] => a` (empty becomes a when any neighbor t points to it)

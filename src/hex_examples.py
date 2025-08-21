@@ -19,9 +19,6 @@ Direction numbers (1-6):
 
 Example Rules:
 
-Conway-style rules (backward compatible):
-- B3/S23 (Conway's Game of Life on hexagonal grid)
-
 Basic hex rules:
 - a => b                    # Simple state change
 - a[b] => c                 # Conditional on any neighbor
@@ -37,9 +34,7 @@ Complex patterns:
 To try these rules:
 
 GUI Methods:
-1. Run the unified GUI: python main.py
-   - Toggle between "Conway/Totalistic Rules" and "HexiDirect Symbolic Rules"
-   - Conway mode: Click to toggle cells
+1. Run the GUI: `python src/main.py`
    - HexiDirect mode:
      * Left click: cycle through states (_, a, b, c, x, t, y, z)
      * Right click: cycle directions (1→2→3→4→5→6→None)
@@ -47,7 +42,7 @@ GUI Methods:
 
 Programmatic Methods:
 Example (programmatic usage):
-from hex_rules import HexAutomaton
+from domain.hexidirect.rule_engine import HexAutomaton
 
 # Create automaton
 automaton = HexAutomaton(radius=8)
