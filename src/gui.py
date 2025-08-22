@@ -42,11 +42,11 @@ class HexiRulesGUI:
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.root.config(bg="#3d033d")  # Set application background
         self.root.config(cursor="none")  # Hide cursor
-        
+
         # Bind Esc key to close application
         self.root.bind("<Escape>", lambda e: self.root.quit())
         self.root.focus_set()  # Ensure root can receive key events
-        
+
         self.hex_items = {}
 
         # Per-canvas dynamic layout
@@ -81,7 +81,9 @@ class HexiRulesGUI:
         # Selected cell info frame above command input (full width)
         self.info_frame = tk.Frame(self.ascii_frame, bg="#3d033d")
         self.info_frame.pack(side=tk.TOP, fill=tk.X, pady=(8, 4))
-        self.selected_label = tk.Label(self.info_frame, text="Selected: none", fg="#ffffff", bg="#3d033d")
+        self.selected_label = tk.Label(
+            self.info_frame, text="Selected: none", fg="#ffffff", bg="#3d033d"
+        )
         self.selected_label.pack(side=tk.LEFT, padx=4)
 
         # Command entry below the info frame
@@ -94,7 +96,9 @@ class HexiRulesGUI:
         self.ascii_text.tag_config("title", foreground="#ffffff")
         self.ascii_text.tag_config("status", foreground="#d0d0d0")
         self.ascii_text.tag_config("section_header", foreground="#a0a0ff")
-        self.ascii_text.tag_config("selected_item", background="#ffffff", foreground="#000000")
+        self.ascii_text.tag_config(
+            "selected_item", background="#ffffff", foreground="#000000"
+        )
         self.ascii_text.tag_config("history_line", foreground="#88ff88")
         self.ascii_text.tag_config("log_line", foreground="#ffff88")
         self.ascii_text.tag_config("command_border", foreground="#8888ff")
@@ -117,9 +121,11 @@ class HexiRulesGUI:
         self.hex_canvas_helper = HexCanvas(self.root, radius=radius, cell_size=20)
         # Dark background for grid - place canvas directly in right frame
         self.hex_canvas_helper.canvas.config(bg="#3d033d", highlightthickness=0)
-        
+
         # Center the canvas in the right frame instead of expanding it
-        self.hex_canvas_helper.canvas.pack(in_=self.right_frame, anchor="center", expand=True)
+        self.hex_canvas_helper.canvas.pack(
+            in_=self.right_frame, anchor="center", expand=True
+        )
 
         # Track selection - start with center cell selected
         self.selected_cell: Optional[Tuple[int, int]] = (0, 0)
@@ -131,39 +137,39 @@ class HexiRulesGUI:
         # Initial render of both panels
         self.update_display()
         self.update_ascii_panel()
-    
+
     def _insert_colored_text(self, text: str, tag: str) -> None:
         """Insert colored text without newline."""
         self.ascii_text.insert(tk.END, text, tag)
-    
+
     def _insert_colored_line(self, text: str, tag: str) -> None:
         """Insert colored text with newline."""
         self.ascii_text.insert(tk.END, text + "\n", tag)
-        
+
     def on_command_enter(self, event) -> None:
         """Handle command entry."""
         command = self.command_entry.get().strip()
         if not command:
             return
-            
+
         # Clear the entry field
         self.command_entry.delete(0, tk.END)
-        
+
         # Process the command
         self.execute_command(command)
-        
+
         # Update displays
         self.update_display()
         self.update_ascii_panel()
-        
+
     def execute_command(self, command: str) -> None:
         """Execute a command from the ASCII panel."""
         cmd = command.strip().lower()
         if not cmd:
             return
-            
+
         world = self._get_current_world()
-        
+
         if cmd == "s" or cmd == "step":
             self.step()
         elif cmd == "c" or cmd == "clear":
@@ -295,13 +301,19 @@ class HexiRulesGUI:
         for (q, r), (cx, cy) in self.hex_canvas_helper.cells.items():
             cell = world.hex.get_cell(q, r)
             # background for empty cells: slightly darker than panel
-            color = "#111111" if cell.state == "_" else STATE_COLORS.get(cell.state, "#ffffff")
+            color = (
+                "#111111"
+                if cell.state == "_"
+                else STATE_COLORS.get(cell.state, "#ffffff")
+            )
             pts = self.hex_canvas_helper.polygon_corners(cx, cy)
             tag = f"cell_{q}_{r}"
             canvas.create_polygon(pts, fill=color, outline="#333333", tags=(tag,))
             # direction marker: a small dot when direction present
             if getattr(cell, "direction", None):
-                canvas.create_oval(cx - 3, cy - 3, cx + 3, cy + 3, fill="#ffff00", outline="")
+                canvas.create_oval(
+                    cx - 3, cy - 3, cx + 3, cy + 3, fill="#ffff00", outline=""
+                )
 
         # highlight selected cell
         if self.selected_cell:
@@ -316,7 +328,9 @@ class HexiRulesGUI:
             q, r = self.selected_cell
             cell = world.hex.get_cell(q, r)
             dir_text = str(cell.direction) if cell.direction is not None else "-"
-            self.selected_label.config(text=f"Selected: ({q},{r}) state={cell.state} dir={dir_text}")
+            self.selected_label.config(
+                text=f"Selected: ({q},{r}) state={cell.state} dir={dir_text}"
+            )
         else:
             self.selected_label.config(text="Selected: none")
 
