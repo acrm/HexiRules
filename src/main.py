@@ -70,12 +70,12 @@ def main() -> None:
     """Main entry point for HexiRules."""
     import sys
     import os
-    
+
     # Add current directory to path if not already there
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if current_dir not in sys.path:
         sys.path.insert(0, current_dir)
-    
+
     gui_mod = importlib.import_module("gui")
     gui = gui_mod.create_gui()
     gui.run()

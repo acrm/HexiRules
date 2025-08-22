@@ -155,23 +155,32 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="HexiDirect rules (use ';' or newlines to separate)",
     )
     parser.add_argument("--radius", type=int, default=3, help="Grid radius")
-    parser.add_argument("--gui", action="store_true", help="Launch graphical interface with ASCII control panel")
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="Launch graphical interface with ASCII control panel",
+    )
     args = parser.parse_args(argv)
 
     if args.gui:
         # Launch GUI mode
         try:
             import gui
+
             gui_instance = gui.create_gui()
             gui_instance.run()
         except ImportError:
-            print("Error: GUI dependencies not available. Install tkinter to use --gui option.")
+            print(
+                "Error: GUI dependencies not available. Install tkinter to use --gui option."
+            )
             return
     else:
         # CLI mode
         automaton = HexAutomaton(radius=args.radius)
         rules = [
-            r.strip() for r in str(args.rule).replace(";", "\n").split("\n") if r.strip()
+            r.strip()
+            for r in str(args.rule).replace(";", "\n").split("\n")
+            if r.strip()
         ]
         if rules:
             automaton.set_rules(rules)
