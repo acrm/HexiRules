@@ -2,18 +2,22 @@
 """Tk grid renderer with ASCII control panel."""
 
 import tkinter as tk
+from tkinter import ttk
 from typing import Any, Dict, List, Tuple, Optional
 import math
 import threading
+import time
 
 from domain.hexidirect.rule_engine import HexAutomaton
 from application.world_service import WorldService
-from ascii_ui import AsciiControlPanel
+from ascii_ui import AsciiUILayout
+from main import HexCanvas
 
 # Configuration
 DEFAULT_RADIUS = 8
-WINDOW_WIDTH = 1200
-WINDOW_HEIGHT = 800
+WINDOW_WIDTH = 1400
+WINDOW_HEIGHT = 900
+ASCII_PANEL_WIDTH = 800  # Width for ASCII panel in pixels (to fit 80 chars)
 
 # Available symbolic states for HexiDirect mode
 SYMBOLIC_STATES = ["_", "a", "b", "c", "x", "t", "y", "z"]
@@ -36,182 +40,145 @@ class HexiRulesGUI:
         self.root = tk.Tk()
         self.root.title("HexiRules - Hexagonal Cellular Automaton")
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+        self.root.config(bg="#3d033d")  # Set application background
+        self.root.config(cursor="none")  # Hide cursor
+        
+        # Bind Esc key to close application
+        self.root.bind("<Escape>", lambda e: self.root.quit())
+        self.root.focus_set()  # Ensure root can receive key events
+        
         self.hex_items = {}
 
         # Per-canvas dynamic layout
         self.canvas = None
         self.canvas_center = (0, 0)
-        self.cell_size = 15.0
-
-        # Worlds management delegated to controller
+        # Controller and ASCII panel widgets
         self.controller = WorldService()
-        self.ascii_panel = AsciiControlPanel(self.controller, self.update_display)
 
-        self.create_widgets()
-        self._init_default_world()
-        self.update_display()
+        # ASCII panel frame
+        self.ascii_frame = ttk.Frame(self.root)
+        self.ascii_frame.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
 
-    # -------- World helpers --------
-    def _init_default_world(self) -> None:
-        self._create_world(
-            "World 1",
-            DEFAULT_RADIUS,
-            True,
-            "t[-a] => t%\n_[t.] => a\nt%[a] => t",
+        # Fixed-size monospace text widget: 80x80 characters
+        self.ascii_text = tk.Text(
+            self.ascii_frame,
+            width=80,
+            height=80,
+            wrap="none",
+            font=("Courier", 10),
+            padx=2,
+            pady=2,
+            bd=0,
         )
-        self._select_world("World 1")
+        # Dark background for ASCII panel
+        self.ascii_text.config(bg="#3d033d", fg="#ffffff", insertbackground="#ffffff")
+        self.ascii_text.pack(side=tk.TOP)
+        # Prevent scrolling inside the control panel
+        self.ascii_text.bind("<MouseWheel>", lambda e: "break")
+        self.ascii_text.bind("<Button-4>", lambda e: "break")
+        self.ascii_text.bind("<Button-5>", lambda e: "break")
 
-    def _create_world(
-        self, name: str, radius: int, is_hex: bool, rules_text: str
-    ) -> None:
-        # Delegate world creation to controller
-        self.controller.create_world(name, radius, is_hex, rules_text)
-        # Update world list UI
-        if hasattr(self, "world_list"):
-            if name not in self.world_list.get(0, tk.END):
-                self.world_list.insert(tk.END, name)
+        # Selected cell info frame above command input (full width)
+        self.info_frame = tk.Frame(self.ascii_frame, bg="#3d033d")
+        self.info_frame.pack(side=tk.TOP, fill=tk.X, pady=(8, 4))
+        self.selected_label = tk.Label(self.info_frame, text="Selected: none", fg="#ffffff", bg="#3d033d")
+        self.selected_label.pack(side=tk.LEFT, padx=4)
 
-    def _select_world(self, name: str) -> None:
-        if name not in self.controller.worlds:
-            return
-        self.controller.select_world(name)
-        self.update_display()
+        # Command entry below the info frame
+        self.command_entry = ttk.Entry(self.ascii_frame, width=80)
+        self.command_entry.pack(side=tk.TOP, pady=(0, 0))
+        self.command_entry.bind("<Return>", self.on_command_enter)
 
-    def _get_current_world(self) -> Dict[str, Any]:
-        # Ask controller for current world
+        # Configure basic tags (colors can be customized further)
+        self.ascii_text.tag_config("border", foreground="#cccccc")
+        self.ascii_text.tag_config("title", foreground="#ffffff")
+        self.ascii_text.tag_config("status", foreground="#d0d0d0")
+        self.ascii_text.tag_config("section_header", foreground="#a0a0ff")
+        self.ascii_text.tag_config("selected_item", background="#ffffff", foreground="#000000")
+        self.ascii_text.tag_config("history_line", foreground="#88ff88")
+        self.ascii_text.tag_config("log_line", foreground="#ffff88")
+        self.ascii_text.tag_config("command_border", foreground="#8888ff")
+        self.ascii_text.tag_config("command_prompt", foreground="#ffffff")
+        self.ascii_text.tag_config("normal", foreground="#ffffff")
+
+        # Initial render
+        # Right-side area: grid filling the whole space
+        self.right_frame = tk.Frame(self.root, bg="#3d033d")
+        self.right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Create hex grid canvas using HexCanvas helper
         try:
-            return self.controller.get_current_world()
+            world = self.controller.get_current_world()
+            radius = int(getattr(world, "radius", DEFAULT_RADIUS))
         except Exception:
-            # Shouldn't happen after init, but guard by re-initializing
-            self._init_default_world()
-            return self.controller.get_current_world()
+            radius = DEFAULT_RADIUS
 
-    # -------- UI construction --------
-    def create_widgets(self) -> None:
-        """Create canvas only."""
-        self.create_grid_panel(self.root)
+        # cell size tuned to fit typical window; adjustable
+        self.hex_canvas_helper = HexCanvas(self.root, radius=radius, cell_size=20)
+        # Dark background for grid - place canvas directly in right frame
+        self.hex_canvas_helper.canvas.config(bg="#3d033d", highlightthickness=0)
+        
+        # Center the canvas in the right frame instead of expanding it
+        self.hex_canvas_helper.canvas.pack(in_=self.right_frame, anchor="center", expand=True)
 
-    def create_grid_panel(self, parent) -> None:
-        """Create the grid panel."""
-        grid_frame = tk.Frame(parent, bg="lightgray")
-        grid_frame.pack(fill=tk.BOTH, expand=True)
+        # Track selection - start with center cell selected
+        self.selected_cell: Optional[Tuple[int, int]] = (0, 0)
 
-        # Canvas for hexagonal grid - fills available space, resizes with window
-        self.canvas = tk.Canvas(grid_frame, bg="lightgray", highlightthickness=0)
-        self.canvas.pack(fill=tk.BOTH, expand=True)
+        # Bind canvas events
+        self.hex_canvas_helper.canvas.bind("<Button-1>", self._on_canvas_click)
+        self.hex_canvas_helper.canvas.bind("<Motion>", self._on_canvas_motion)
 
-        # Bind mouse and resize events
-        self.canvas.bind("<Button-1>", self.on_left_click)
-        self.canvas.bind("<Button-3>", self.on_right_click)
-        self.canvas.bind("<Button-2>", self.on_middle_click)
-        self.canvas.bind("<Configure>", self.on_canvas_resize)
-
-    # -------- Scaling helpers --------
-    def on_canvas_resize(self, event: Any) -> None:
-        # Recompute layout when canvas resizes
-        self._compute_layout()
+        # Initial render of both panels
         self.update_display()
-
-    def _compute_layout(self) -> None:
-        # Compute cell size to fit the grid for current world's radius
-        world = self._get_current_world()
-        R = int(getattr(world, "radius", DEFAULT_RADIUS))
-        width = max(1, self.canvas.winfo_width())
-        height = max(1, self.canvas.winfo_height())
-        pad = 10
-        # Total width = s * (3R + 2), Total height = s * (3*sqrt(3)*R + 2)
-        if R <= 0:
-            s_w = (width - pad) / 2.0
-            s_h = (height - pad) / 2.0
-        else:
-            s_w = (width - pad) / (3.0 * R + 2.0)
-            s_h = (height - pad) / (3.0 * math.sqrt(3) * R + 2.0)
-        self.cell_size = max(2.0, min(s_w, s_h))
-        self.canvas_center = (width // 2, height // 2)
-
-    # -------- Coordinate transforms --------
-    def get_hex_coordinates(self, canvas_x: int, canvas_y: int) -> Tuple[int, int]:
-        """Convert canvas coordinates to hex grid coordinates."""
-        cx, cy = self.canvas_center
-        x = (canvas_x - cx) / (self.cell_size * 1.5)
-        y = (canvas_y - cy) / (self.cell_size * math.sqrt(3))
-        q = round(x)
-        r = round(y - x / 2)
-        return int(q), int(r)
-
-    def get_canvas_position(self, q: int, r: int) -> Tuple[float, float]:
-        """Convert hex coordinates to canvas position."""
-        cx, cy = self.canvas_center
-        x = cx + q * self.cell_size * 1.5
-        y = cy + (r + q / 2) * self.cell_size * math.sqrt(3)
-        return x, y
-
-    # -------- Drawing --------
-    def draw_hex(
-        self,
-        x: float,
-        y: float,
-        color: str,
-        state: str = "",
-        direction: Optional[int] = None,
-    ) -> int:
-        """Draw a hexagon at the given position with state and direction."""
-        points: List[float] = []
-        for i in range(6):
-            angle = i * math.pi / 3
-            px = x + self.cell_size * math.cos(angle)
-            py = y + self.cell_size * math.sin(angle)
-            points.extend([px, py])
-
-        hex_id = self.canvas.create_polygon(
-            points, fill=color, outline="black", width=1
-        )
-
-        world = self._get_current_world()
-        if state and state != "_":
-            label = f"{state}{direction}" if direction is not None else state
-            self.canvas.create_text(x, y, text=label, font=("Arial", 8, "bold"))
-        if direction is not None:
-            dot_distance = self.cell_size * 0.8
-            # Engine neighbor order is [(1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1)]
-            # which corresponds to angles 0°, 60°, 120°, 180°, 240°, 300°.
-            # Map direction 1 -> 0° and add 60° CCW per step.
-            angle_degrees = (direction - 1) * 60
-            ang = math.radians(angle_degrees)
-            dx = dot_distance * math.cos(ang)
-            dy = -dot_distance * math.sin(ang)
-            self.canvas.create_oval(
-                x + dx - 3,
-                y + dy - 3,
-                x + dx + 3,
-                y + dy + 3,
-                fill="red",
-                outline="darkred",
-            )
-
-        return int(hex_id)
-
-    def update_display(self) -> None:
-        """Update the visual display."""
-        if not hasattr(self, "canvas"):
+        self.update_ascii_panel()
+    
+    def _insert_colored_text(self, text: str, tag: str) -> None:
+        """Insert colored text without newline."""
+        self.ascii_text.insert(tk.END, text, tag)
+    
+    def _insert_colored_line(self, text: str, tag: str) -> None:
+        """Insert colored text with newline."""
+        self.ascii_text.insert(tk.END, text + "\n", tag)
+        
+    def on_command_enter(self, event) -> None:
+        """Handle command entry."""
+        command = self.command_entry.get().strip()
+        if not command:
             return
-        # Ensure layout is initialized
-        self._compute_layout()
-        self.canvas.delete("all")
-        self.hex_items.clear()
-
+            
+        # Clear the entry field
+        self.command_entry.delete(0, tk.END)
+        
+        # Process the command
+        self.execute_command(command)
+        
+        # Update displays
+        self.update_display()
+        self.update_ascii_panel()
+        
+    def execute_command(self, command: str) -> None:
+        """Execute a command from the ASCII panel."""
+        cmd = command.strip().lower()
+        if not cmd:
+            return
+            
         world = self._get_current_world()
-        R = int(getattr(world, "radius", DEFAULT_RADIUS))
-        automaton = world.hex
-
-        for q in range(-R, R + 1):
-            for r in range(-R, R + 1):
-                if abs(q + r) <= R:
-                    x, y = self.get_canvas_position(q, r)
-                    cell = automaton.get_cell(q, r)
-                    color = STATE_COLORS.get(cell.state, "gray")
-                    hex_id = self.draw_hex(x, y, color, cell.state, cell.direction)
-                    self.hex_items[(q, r)] = hex_id
+        
+        if cmd == "s" or cmd == "step":
+            self.step()
+        elif cmd == "c" or cmd == "clear":
+            self.clear()
+        elif cmd == "r" or cmd == "randomize":
+            self.randomize()
+        elif cmd == "q" or cmd == "quit":
+            self.root.quit()
+        elif cmd.startswith("rule "):
+            # Set new rules
+            rule_text = command[5:].strip()
+            world.rules_text = rule_text
+        else:
+            # Show help or unknown command
+            pass
 
     def on_left_click(self, event: Any) -> None:
         q, r = self.get_hex_coordinates(event.x, event.y)
@@ -228,6 +195,7 @@ class HexiRulesGUI:
             new_state = SYMBOLIC_STATES[next_idx]
             world.hex.set_cell(q, r, new_state, current_cell.direction)
             self.update_display()
+            self.update_ascii_panel()
 
     def on_right_click(self, event: Any) -> None:
         world = self._get_current_world()
@@ -244,6 +212,7 @@ class HexiRulesGUI:
                 )
                 world.hex.set_cell(q, r, current_cell.state, new_dir)
                 self.update_display()
+                self.update_ascii_panel()
 
     def on_middle_click(self, event: Any) -> None:
         world = self._get_current_world()
@@ -252,23 +221,149 @@ class HexiRulesGUI:
         if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
             world.hex.set_cell(q, r, "_")
             self.update_display()
+            self.update_ascii_panel()
 
     def step(self) -> None:
         world = self.controller.get_current_world()
         self.controller.step(world.rules_text)
         self.update_display()
+        self.update_ascii_panel()
 
     def clear(self) -> None:
         self.controller.clear()
         self.update_display()
+        self.update_ascii_panel()
 
     def randomize(self) -> None:
         self.controller.randomize(SYMBOLIC_STATES, p=0.3)
         self.update_display()
+        self.update_ascii_panel()
 
     def run(self) -> None:
-        threading.Thread(target=self.ascii_panel.run, daemon=True).start()
+        """Start the GUI application."""
         self.root.mainloop()
+
+    def update_ascii_panel(self) -> None:
+        """Render the ASCII UI using AsciiUILayout and apply tags precisely."""
+        try:
+            layout = AsciiUILayout(self.controller)
+            lines, tags = layout.render()
+        except Exception:
+            # Fail-safe: render empty grid
+            lines = [" " * 80 for _ in range(80)]
+            tags = [[] for _ in range(80)]
+
+        # Insert into text widget
+        self.ascii_text.config(state=tk.NORMAL)
+        self.ascii_text.delete("1.0", tk.END)
+
+        for line in lines:
+            # Each line already exactly 80 chars
+            self.ascii_text.insert(tk.END, line + "\n")
+
+        # Apply tags (line-based indices: lines start at 1)
+        for i, line_tags in enumerate(tags):
+            line_no = i + 1
+            for start, end, tag in line_tags:
+                # Clamp to valid range
+                s = max(0, min(79, start))
+                e = max(0, min(80, end))
+                try:
+                    self.ascii_text.tag_add(tag, f"{line_no}.{s}", f"{line_no}.{e}")
+                except Exception:
+                    # Ignore malformed tag ranges
+                    pass
+
+        self.ascii_text.config(state=tk.DISABLED)
+
+    # --- Grid rendering and selection ---------------------------------
+    def _get_current_world(self):
+        return self.controller.get_current_world()
+
+    def update_display(self) -> None:
+        """Render the hex grid onto the canvas using world data."""
+        try:
+            world = self._get_current_world()
+        except Exception:
+            return
+
+        canvas = self.hex_canvas_helper.canvas
+        # clear previous drawings
+        canvas.delete("all")
+
+        # Draw each cell
+        for (q, r), (cx, cy) in self.hex_canvas_helper.cells.items():
+            cell = world.hex.get_cell(q, r)
+            # background for empty cells: slightly darker than panel
+            color = "#111111" if cell.state == "_" else STATE_COLORS.get(cell.state, "#ffffff")
+            pts = self.hex_canvas_helper.polygon_corners(cx, cy)
+            tag = f"cell_{q}_{r}"
+            canvas.create_polygon(pts, fill=color, outline="#333333", tags=(tag,))
+            # direction marker: a small dot when direction present
+            if getattr(cell, "direction", None):
+                canvas.create_oval(cx - 3, cy - 3, cx + 3, cy + 3, fill="#ffff00", outline="")
+
+        # highlight selected cell
+        if self.selected_cell:
+            q, r = self.selected_cell
+            if (q, r) in self.hex_canvas_helper.cells:
+                cx, cy = self.hex_canvas_helper.cells[(q, r)]
+                pts = self.hex_canvas_helper.polygon_corners(cx, cy)
+                canvas.create_polygon(pts, fill="", outline="#ffffff", width=2)
+
+        # update selected info display
+        if self.selected_cell:
+            q, r = self.selected_cell
+            cell = world.hex.get_cell(q, r)
+            dir_text = str(cell.direction) if cell.direction is not None else "-"
+            self.selected_label.config(text=f"Selected: ({q},{r}) state={cell.state} dir={dir_text}")
+        else:
+            self.selected_label.config(text="Selected: none")
+
+    def _on_canvas_click(self, event: Any) -> None:
+        q, r = self.get_hex_coordinates(event.x, event.y)
+        try:
+            world = self._get_current_world()
+        except Exception:
+            return
+        R = int(getattr(world, "radius", DEFAULT_RADIUS))
+        if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
+            # set selection and update displays
+            self.selected_cell = (q, r)
+            self.update_display()
+            self.update_ascii_panel()
+        # If outside grid, keep previous selection
+
+    def _on_canvas_motion(self, event: Any) -> None:
+        """Track mouse motion and update selection if within grid."""
+        q, r = self.get_hex_coordinates(event.x, event.y)
+        try:
+            world = self._get_current_world()
+        except Exception:
+            return
+        R = int(getattr(world, "radius", DEFAULT_RADIUS))
+        if abs(q) <= R and abs(r) <= R and abs(q + r) <= R:
+            # Update selection only if within grid
+            if self.selected_cell != (q, r):
+                self.selected_cell = (q, r)
+                self.update_display()
+                self.update_ascii_panel()
+
+    def get_hex_coordinates(self, x: int, y: int) -> Tuple[int, int]:
+        """Return axial coordinates nearest to pixel (x,y) on the hex canvas."""
+        # Find nearest precomputed center
+        best = None
+        best_dist = float("inf")
+        for (q, r), (cx, cy) in self.hex_canvas_helper.cells.items():
+            dx = cx - x
+            dy = cy - y
+            d = dx * dx + dy * dy
+            if d < best_dist:
+                best_dist = d
+                best = (q, r)
+        if best is None:
+            return (0, 0)
+        return best
 
 
 def create_gui() -> HexiRulesGUI:

@@ -49,7 +49,7 @@ class HexCanvas:
                 self.cells[(q, r)] = (x, y)
 
     def axial_to_pixel(self, q: int, r: int) -> Tuple[int, int]:
-        """Convert axial (q, r) to pixel coordinates (pointy-top orientation)."""
+        """Convert axial (q, r) to pixel coordinates (pointy-top grid structure)."""
         x = self.center_x + int(round(self.cell_size * (3 / 2) * q))
         y = self.center_y + int(round(self.cell_size * math.sqrt(3) * (r + q / 2)))
         return x, y
@@ -57,9 +57,9 @@ class HexCanvas:
     def polygon_corners(self, cx: int, cy: int) -> List[int]:
         """Return the 6-point polygon around (cx, cy) as a flat list of 12 ints."""
         pts: List[int] = []
-        # pointy-top hexagon: start at -30 degrees and step by 60 degrees
+        # flat-top hexagon cells: start at 0 degrees and step by 60 degrees
         for i in range(6):
-            angle_rad = math.radians(60 * i - 30)
+            angle_rad = math.radians(60 * i)
             x = cx + self.cell_size * math.cos(angle_rad)
             y = cy + self.cell_size * math.sin(angle_rad)
             pts.extend([int(round(x)), int(round(y))])
@@ -68,6 +68,14 @@ class HexCanvas:
 
 def main() -> None:
     """Main entry point for HexiRules."""
+    import sys
+    import os
+    
+    # Add current directory to path if not already there
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    
     gui_mod = importlib.import_module("gui")
     gui = gui_mod.create_gui()
     gui.run()
