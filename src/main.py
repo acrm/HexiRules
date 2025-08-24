@@ -2,14 +2,19 @@
 """
 HexiRules - Hexagonal Cellular Automaton
 
-Main entry point for the HexiRules application using HexiDirect symbolic rules.
+Unified launcher for all run modes:
+    - py-gui: Tk HexiScope + ASCII HexiOS (embedded controller)
+    - react-desktop: Embedded browser window hosting the React HexiOS + Canvas HexiScope
+                                     backed by the local FastAPI server
+    - ascii-cli: ASCII HexiOS only (interactive), prints ASCII control panel and accepts commands
+    - cli: pure CLI without any UI (existing commands-based shell)
 
 Also exposes a minimal HexCanvas helper used by geometry-focused tests.
 """
 
 import importlib
 import math
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Any
 
 try:
     import tkinter as tk  # Only needed when tests instantiate the canvas
@@ -24,7 +29,7 @@ class HexCanvas:
     Tests use it to validate coordinate conversions and hex polygon math.
     """
 
-    def __init__(self, root: tk.Tk, radius: int = 3, cell_size: int = 20) -> None:
+    def __init__(self, root: "tk.Misc", radius: int = 3, cell_size: int = 20) -> None:
         if tk is None:
             raise RuntimeError("Tkinter not available")
         self.root = root
@@ -66,19 +71,99 @@ class HexCanvas:
         return pts
 
 
-def main() -> None:
-    """Main entry point for HexiRules."""
+def _run_py_gui() -> None:
+    gui_mod = importlib.import_module("infrastructure.ui.hexiscope.tk.gui_app")
+    gui = gui_mod.create_gui()
+    gui.run()
+
+
+def _run_react_desktop() -> None:
+    """Launch FastAPI server and open a desktop window with the React UI.
+
+    Requires server dependencies (fastapi/uvicorn) and pywebview for the desktop window.
+    Falls back to opening a browser if pywebview is unavailable.
+    """
+    import threading
+    import time
+    import webbrowser
+
+    try:
+        import uvicorn  # type: ignore
+        from infrastructure.server.app import app  # FastAPI application
+    except Exception as ex:  # pragma: no cover - optional path
+        print("React desktop requires server deps (fastapi/uvicorn).", ex)
+        return
+
+    def serve() -> None:
+        uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
+
+    t = threading.Thread(target=serve, daemon=True)
+    t.start()
+    # Give the server a moment to start
+    time.sleep(0.6)
+
+    url = "http://127.0.0.1:8000"
+    try:
+        import webview  # type: ignore
+
+        webview.create_window("HexiRules", url)
+        webview.start()
+    except Exception:
+        print("pywebview not installed; opening in default browser.")
+        webbrowser.open(url)
+
+
+def _run_ascii_cli() -> None:
+    from infrastructure.ui.hexios.desktop.ascii.facade import AsciiControlPanel
+    from application.world_service import WorldService
+
+    controller = WorldService()
+    panel = AsciiControlPanel(controller, quit_callback=lambda: None)
+    # Render once for immediate feedback, then accept commands from stdin
+    print(panel.render())
+    panel.run()
+
+
+def _run_pure_cli(argv: List[str] | None = None) -> None:
+    # Delegate to the existing CLI tool
+    from cli import main as cli_main
+
+    cli_main(argv)
+
+
+def main(argv: List[str] | None = None) -> None:
+    """Main entry point for HexiRules launcher."""
     import sys
     import os
+    import argparse
 
     # Add current directory to path if not already there
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if current_dir not in sys.path:
         sys.path.insert(0, current_dir)
 
-    gui_mod = importlib.import_module("gui")
-    gui = gui_mod.create_gui()
-    gui.run()
+    parser = argparse.ArgumentParser(description="HexiRules unified launcher")
+    parser.add_argument(
+        "--mode",
+        choices=["py-gui", "react-desktop", "ascii-cli", "cli"],
+        default=os.getenv("HEXIRULES_MODE", "py-gui"),
+        help="Run mode: Tk GUI, React desktop, ASCII CLI, or pure CLI",
+    )
+    # Pass-through arguments for pure CLI when selected
+    parser.add_argument("cli_args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
+
+    args = parser.parse_args(argv)
+
+    if args.mode == "py-gui":
+        _run_py_gui()
+    elif args.mode == "react-desktop":
+        _run_react_desktop()
+    elif args.mode == "ascii-cli":
+        _run_ascii_cli()
+    elif args.mode == "cli":
+        _run_pure_cli(args.cli_args)
+    else:  # pragma: no cover - defensive default
+        _run_py_gui()
 
 
 if __name__ == "__main__":

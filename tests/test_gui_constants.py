@@ -5,15 +5,9 @@ Test suite for non-GUI components that can be tested without Tkinter
 
 import unittest
 
-# Try to import GUI constants, skip tests if GUI not available
-try:
-    from gui import STATE_COLORS, SYMBOLIC_STATES
-
-    GUI_AVAILABLE = True
-except ImportError:
-    GUI_AVAILABLE = False
-    STATE_COLORS = {}
-    SYMBOLIC_STATES = []
+# Import constants from domain layer now that UI is decoupled
+from domain.constants import STATE_COLORS, SYMBOLIC_STATES
+GUI_AVAILABLE = True
 
 
 class TestGUIConstants(unittest.TestCase):

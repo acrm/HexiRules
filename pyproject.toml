@@ -27,17 +27,26 @@ classifiers = [
 [project.scripts]
 hexirules = "main:main"
 hexirules-cli = "cli:main"
+hexirules-ascii = "main:main"
 
 [project.urls]
 "Homepage" = "https://github.com/acrm/HexiRules"
 "Bug Reports" = "https://github.com/acrm/HexiRules/issues"
 "Source" = "https://github.com/acrm/HexiRules"
 
+[project.optional-dependencies]
+server = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+]
+desktop = [
+  "pywebview==5.2",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 py-modules = [
   "cli",
-  "gui",
   "hex_examples",
   "version",
   "main",

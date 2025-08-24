@@ -165,7 +165,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.gui:
         # Launch GUI mode
         try:
-            import gui
+            from infrastructure.ui.hexiscope.tk import gui_app as gui
 
             gui_instance = gui.create_gui()
             gui_instance.run()

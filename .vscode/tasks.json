@@ -25,14 +25,14 @@
     {
       "label": "Web: npm install",
       "type": "shell",
-      "command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping install'; exit 0; fi; if [ ! -d web ]; then echo 'web folder missing, skipping'; exit 0; fi; cd web && timeout 180s npm install --no-fund --no-audit || { echo 'npm install failed or timed out; continuing without web UI'; true; }\"",
+      "command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping install'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping'; exit 0; fi; cd src/infrastructure/ui/hexios/web && timeout 180s npm install --no-fund --no-audit || { echo 'npm install failed or timed out; continuing without web UI'; true; }\"",
       "group": "build",
       "problemMatcher": []
     },
     {
       "label": "Web: build",
       "type": "shell",
-      "command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping build'; exit 0; fi; if [ ! -d web ]; then echo 'web folder missing, skipping build'; exit 0; fi; cd web && ( timeout 300s npm run build || { echo 'npm build failed or timed out; continuing without web UI'; true; } )\"",
+      "command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping build'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping build'; exit 0; fi; cd src/infrastructure/ui/hexios/web && ( timeout 300s npm run build || { echo 'npm build failed or timed out; continuing without web UI'; true; } )\"",
       "group": "build",
       "problemMatcher": []
     },

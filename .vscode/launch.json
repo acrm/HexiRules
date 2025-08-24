@@ -2,20 +2,33 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "GUI",
+      "name": "HexiRules: Py GUI",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/src/main.py",
+      "args": ["--mode", "py-gui"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
       "preLaunchTask": "Build"
     },
     {
-      "name": "CLI",
+      "name": "HexiRules: CLI",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/src/cli.py",
+      "program": "${workspaceFolder}/src/main.py",
+      "args": ["--mode", "cli"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Build"
+    },
+    {
+      "name": "HexiRules: ASCII CLI",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/main.py",
+      "args": ["--mode", "ascii-cli"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
@@ -33,20 +46,25 @@
       "preLaunchTask": "Build"
     },
     {
-      "name": "Server",
+      "name": "Server (API only)",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/tools/run_server.py",
+      "module": "uvicorn",
+  "args": ["infrastructure.server.app:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
       "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
       "console": "integratedTerminal",
       "justMyCode": true,
       "preLaunchTask": "Build"
     },
     {
-      "name": "Desktop",
+      "name": "HexiRules: React Desktop",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/tools/run_desktop.py",
+      "program": "${workspaceFolder}/src/main.py",
+      "args": ["--mode", "react-desktop"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
@@ -56,7 +74,7 @@
       "name": "Web Dev",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceFolder}/web",
+      "cwd": "${workspaceFolder}/src/infrastructure/ui/hexios/web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "console": "integratedTerminal",
@@ -67,14 +85,14 @@
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/web"
+      "webRoot": "${workspaceFolder}/src/infrastructure/ui/hexios/web"
     },
     {
       "name": "Open Server Web",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:8000",
-      "webRoot": "${workspaceFolder}/web"
+      "webRoot": "${workspaceFolder}/src/infrastructure/ui/hexios/web"
     }
   ],
   "compounds": [
