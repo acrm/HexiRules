@@ -10,7 +10,7 @@ import time
 
 from domain.hexidirect.rule_engine import HexAutomaton
 from application.world_service import WorldService
-from ascii_ui import AsciiUILayout
+from ascii_ui import AsciiUILayout, SelectionState
 from main import HexCanvas
 
 # Configuration
@@ -43,8 +43,15 @@ class HexiRulesGUI:
         self.root.config(bg="#3d033d")  # Set application background
         self.root.config(cursor="none")  # Hide cursor
 
-        # Bind Esc key to close application
-        self.root.bind("<Escape>", lambda e: self.root.quit())
+        # Selection state for ASCII panel
+        self.selection = SelectionState(mode="top")
+
+        # Bind hotkeys for ASCII panel selection and quit
+        self.root.bind("<Escape>", self._on_escape)
+        self.root.bind("<Control-q>", lambda e: self.root.quit())
+        for key, frame_id in [("w", "worlds"), ("r", "rules"), ("h", "history"), ("l", "logs")]:
+            self.root.bind(key, lambda e, fid=frame_id: self._select_frame(fid))
+            self.root.bind(key.upper(), lambda e, fid=frame_id: self._select_frame(fid))
         self.root.focus_set()  # Ensure root can receive key events
 
         self.hex_items = {}
@@ -59,11 +66,11 @@ class HexiRulesGUI:
         self.ascii_frame = ttk.Frame(self.root)
         self.ascii_frame.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
 
-        # Fixed-size monospace text widget: 80x80 characters
+        # Fixed-size monospace text widget: 81x51 characters
         self.ascii_text = tk.Text(
             self.ascii_frame,
-            width=80,
-            height=80,
+            width=81,
+            height=51,
             wrap="none",
             font=("Courier", 10),
             padx=2,
@@ -78,15 +85,7 @@ class HexiRulesGUI:
         self.ascii_text.bind("<Button-4>", lambda e: "break")
         self.ascii_text.bind("<Button-5>", lambda e: "break")
 
-        # Selected cell info frame above command input (full width)
-        self.info_frame = tk.Frame(self.ascii_frame, bg="#3d033d")
-        self.info_frame.pack(side=tk.TOP, fill=tk.X, pady=(8, 4))
-        self.selected_label = tk.Label(
-            self.info_frame, text="Selected: none", fg="#ffffff", bg="#3d033d"
-        )
-        self.selected_label.pack(side=tk.LEFT, padx=4)
-
-        # Command entry below the info frame
+    # Command entry below the ASCII panel
         self.command_entry = ttk.Entry(self.ascii_frame, width=80)
         self.command_entry.pack(side=tk.TOP, pady=(0, 0))
         self.command_entry.bind("<Return>", self.on_command_enter)
@@ -104,6 +103,9 @@ class HexiRulesGUI:
         self.ascii_text.tag_config("command_border", foreground="#8888ff")
         self.ascii_text.tag_config("command_prompt", foreground="#ffffff")
         self.ascii_text.tag_config("normal", foreground="#ffffff")
+        # New tags used by ascii_ui renderer
+        self.ascii_text.tag_config("hotkey", foreground="#ffff00")
+        self.ascii_text.tag_config("border_sel", foreground="#ffff00")
 
         # Initial render
         # Right-side area: grid filling the whole space
@@ -128,7 +130,7 @@ class HexiRulesGUI:
         )
 
         # Track selection - start with center cell selected
-        self.selected_cell: Optional[Tuple[int, int]] = (0, 0)
+        self.selected_cell = (0, 0)
 
         # Bind canvas events
         self.hex_canvas_helper.canvas.bind("<Button-1>", self._on_canvas_click)
@@ -252,12 +254,24 @@ class HexiRulesGUI:
     def update_ascii_panel(self) -> None:
         """Render the ASCII UI using AsciiUILayout and apply tags precisely."""
         try:
-            layout = AsciiUILayout(self.controller)
+            # Compose selected info for full-width frame above command line
+            selected_info = None
+            if self.selected_cell:
+                q, r = self.selected_cell
+                try:
+                    world = self._get_current_world()
+                    cell = world.hex.get_cell(q, r)
+                    dir_text = str(cell.direction) if cell.direction is not None else "-"
+                    selected_info = f"Selected: ({q},{r}) state={cell.state} dir={dir_text}"
+                except Exception:
+                    selected_info = f"Selected: ({q},{r})"
+
+            layout = AsciiUILayout(self.controller, selection=self.selection, selected_info=selected_info)
             lines, tags = layout.render()
         except Exception:
-            # Fail-safe: render empty grid
-            lines = [" " * 80 for _ in range(80)]
-            tags = [[] for _ in range(80)]
+            # Fail-safe: render empty grid (81x51)
+            lines = [" " * 81 for _ in range(51)]
+            tags = [[] for _ in range(51)]
 
         # Insert into text widget
         self.ascii_text.config(state=tk.NORMAL)
@@ -270,10 +284,11 @@ class HexiRulesGUI:
         # Apply tags (line-based indices: lines start at 1)
         for i, line_tags in enumerate(tags):
             line_no = i + 1
+            width = len(lines[i]) if i < len(lines) else 81
             for start, end, tag in line_tags:
-                # Clamp to valid range
-                s = max(0, min(79, start))
-                e = max(0, min(80, end))
+                # Clamp to valid range for 81-wide surface
+                s = max(0, min(width - 1, start))
+                e = max(0, min(width, end))
                 try:
                     self.ascii_text.tag_add(tag, f"{line_no}.{s}", f"{line_no}.{e}")
                 except Exception:
@@ -323,16 +338,7 @@ class HexiRulesGUI:
                 pts = self.hex_canvas_helper.polygon_corners(cx, cy)
                 canvas.create_polygon(pts, fill="", outline="#ffffff", width=2)
 
-        # update selected info display
-        if self.selected_cell:
-            q, r = self.selected_cell
-            cell = world.hex.get_cell(q, r)
-            dir_text = str(cell.direction) if cell.direction is not None else "-"
-            self.selected_label.config(
-                text=f"Selected: ({q},{r}) state={cell.state} dir={dir_text}"
-            )
-        else:
-            self.selected_label.config(text="Selected: none")
+    # Selected info now rendered inside ASCII panel; no external label below it
 
     def _on_canvas_click(self, event: Any) -> None:
         q, r = self.get_hex_coordinates(event.x, event.y)
@@ -378,6 +384,16 @@ class HexiRulesGUI:
         if best is None:
             return (0, 0)
         return best
+
+    # --- ASCII panel selection handlers ---
+    def _select_frame(self, frame_id: str) -> None:
+        self.selection = SelectionState(mode="frame", frame_id=frame_id)
+        self.update_ascii_panel()
+
+    def _on_escape(self, event: Any) -> None:
+        # Esc: deselect any frame, highlight outer border
+        self.selection = SelectionState(mode="top")
+        self.update_ascii_panel()
 
 
 def create_gui() -> HexiRulesGUI:
