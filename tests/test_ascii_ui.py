@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from infrastructure.ui.hexios.ascii.facade import AsciiControlPanel
+from infrastructure.ui.hexios.desktop.ascii.facade import AsciiControlPanel
 from application.world_service import WorldService
 
 
