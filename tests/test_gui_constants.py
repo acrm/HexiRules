@@ -7,6 +7,7 @@ import unittest
 
 # Import constants from domain layer now that UI is decoupled
 from domain.constants import STATE_COLORS, SYMBOLIC_STATES
+
 GUI_AVAILABLE = True
 
 

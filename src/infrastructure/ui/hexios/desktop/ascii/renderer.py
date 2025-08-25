@@ -51,7 +51,7 @@ class GridLayoutSpec:
 
 try:
     # Only for typing reference; avoid circular at runtime if needed
-    from .viewmodel import AsciiViewModel  # type: ignore
+    from .viewmodel import AsciiViewModel
 except Exception:  # pragma: no cover
     AsciiViewModel = object  # type: ignore
 
@@ -88,7 +88,7 @@ class AsciiRenderer:
                 return
             horiz = "\u2500"
             vert = "\u2502"
-            tl, tr, bl, br = "\u250C", "\u2510", "\u2514", "\u2518"
+            tl, tr, bl, br = "\u250c", "\u2510", "\u2514", "\u2518"
             tag = "border_sel" if sel else "border"
             # top
             put_text(x, y, tl + horiz * (w - 2) + tr, tag)

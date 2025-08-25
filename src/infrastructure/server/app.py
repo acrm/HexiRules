@@ -34,8 +34,12 @@ app.add_middleware(
 sessions = SessionManager()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-HEXIOS_WEB_DIST = os.path.join(ROOT, "src", "infrastructure", "ui", "hexios", "web", "dist")
-HEXISCOPE_WEB_DIST = os.path.join(ROOT, "src", "infrastructure", "ui", "hexiscope", "web", "dist")
+HEXIOS_WEB_DIST = os.path.join(
+    ROOT, "src", "infrastructure", "ui", "hexios", "web", "dist"
+)
+HEXISCOPE_WEB_DIST = os.path.join(
+    ROOT, "src", "infrastructure", "ui", "hexiscope", "web", "dist"
+)
 
 
 @app.post("/session")
@@ -227,6 +231,12 @@ api_router.add_api_route("/step", step, methods=["POST"])
 app.include_router(api_router, prefix="/api")
 
 if os.path.isdir(HEXIOS_WEB_DIST):
-    app.mount("/hexios", StaticFiles(directory=HEXIOS_WEB_DIST, html=True), name="hexios-web")
+    app.mount(
+        "/hexios", StaticFiles(directory=HEXIOS_WEB_DIST, html=True), name="hexios-web"
+    )
 if os.path.isdir(HEXISCOPE_WEB_DIST):
-    app.mount("/hexiscope", StaticFiles(directory=HEXISCOPE_WEB_DIST, html=True), name="hexiscope-web")
+    app.mount(
+        "/hexiscope",
+        StaticFiles(directory=HEXISCOPE_WEB_DIST, html=True),
+        name="hexiscope-web",
+    )

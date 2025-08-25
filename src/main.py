@@ -88,7 +88,7 @@ def _run_react_desktop() -> None:
     import webbrowser
 
     try:
-        import uvicorn  # type: ignore
+        import uvicorn
         from infrastructure.server.app import app  # FastAPI application
     except Exception as ex:  # pragma: no cover - optional path
         print("React desktop requires server deps (fastapi/uvicorn).", ex)
@@ -104,7 +104,7 @@ def _run_react_desktop() -> None:
 
     url = "http://127.0.0.1:8000"
     try:
-        import webview  # type: ignore
+        import webview
 
         webview.create_window("HexiRules", url)
         webview.start()

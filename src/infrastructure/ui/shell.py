@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 Top-level UI shell for graphical launches (Infrastructure).
 
@@ -36,13 +37,17 @@ def run_shell(mode: str = "desktop") -> None:
     elif mode == "web":
         # Start server if not running, then open browser to a simple HTML splitter page
         try:
-            import uvicorn  # type: ignore
+            import uvicorn
             from infrastructure.server.app import app
         except Exception:
             raise SystemExit("Web mode requires server dependencies (fastapi/uvicorn)")
 
         def serve() -> None:
-            uvicorn.run(app, host=os.getenv("HEXI_HOST", "127.0.0.1"), port=int(os.getenv("HEXI_PORT", "8000")))
+            uvicorn.run(
+                app,
+                host=os.getenv("HEXI_HOST", "127.0.0.1"),
+                port=int(os.getenv("HEXI_PORT", "8000")),
+            )
 
         t = threading.Thread(target=serve, daemon=True)
         t.start()
@@ -55,7 +60,11 @@ def run_shell(mode: str = "desktop") -> None:
 
 def main(argv: Optional[list[str]] = None) -> None:
     p = argparse.ArgumentParser(description="HexiRules UI Shell")
-    p.add_argument("--mode", choices=["desktop", "web"], default=os.getenv("HEXI_UI_MODE", "desktop"))
+    p.add_argument(
+        "--mode",
+        choices=["desktop", "web"],
+        default=os.getenv("HEXI_UI_MODE", "desktop"),
+    )
     args = p.parse_args(argv)
     run_shell(args.mode)
 
