@@ -80,6 +80,7 @@ def discover_python_files(root: Path) -> List[str]:
 # Define the web directory path as a constant for flexibility
 WEB_DIR_RELATIVE = Path("src/infrastructure/ui/hexios/web")
 
+
 def main() -> int:
     """Run all code quality checks."""
     print("HexiRules Code Quality Checker")
@@ -125,7 +126,10 @@ def main() -> int:
     # 4. Web Build and Type Check
     print_header("Web Build and Type Check")
     web_dir = repo_root / WEB_DIR_RELATIVE
-    if (web_dir / "package.json").exists():
+    gui_disabled = os.getenv("HEXIRULES_NO_GUI") in {"1", "true", "True"}
+    if gui_disabled:
+        print("GUI disabled via HEXIRULES_NO_GUI; skipping web checks")
+    elif (web_dir / "package.json").exists():
         ci_cmd = ["npm", "--prefix", str(web_dir), "ci"]
         ci_passed, ci_output = run_command(ci_cmd, "Web Dependency Install")
         print_result(

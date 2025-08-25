@@ -39,10 +39,12 @@ jobs:
         node-version: 20
 
     - name: Install web dependencies
+      if: ${{ hashFiles('web/package.json') != '' }}
       working-directory: web
       run: npm ci
 
     - name: Build and typecheck web
+      if: ${{ hashFiles('web/package.json') != '' }}
       working-directory: web
       run: |
         npm run build

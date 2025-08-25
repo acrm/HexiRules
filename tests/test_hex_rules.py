@@ -82,7 +82,7 @@ class TestHexRules(unittest.TestCase):
 
         # Set up initial state - 'a' cell with 'x' neighbor
         self.automaton.set_cell(0, 0, "a")
-        self.automaton.set_cell(1, 0, "x")  # Neighbor in direction 1
+        self.automaton.set_cell(1, -1, "x")  # Neighbor in direction 1 (upper-right)
 
         # Apply one step
         self.automaton.step()
@@ -96,7 +96,7 @@ class TestHexRules(unittest.TestCase):
 
         # Set up initial state - 'a' cell without 'x' neighbor
         self.automaton.set_cell(0, 0, "a")
-        self.automaton.set_cell(1, 0, "y")  # Different neighbor
+        self.automaton.set_cell(1, -1, "y")  # Different neighbor
 
         # Apply one step
         self.automaton.step()

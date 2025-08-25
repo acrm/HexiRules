@@ -208,7 +208,7 @@ class HexAutomaton:
     @staticmethod
     def get_neighbors(q: int, r: int) -> List[Tuple[int, int]]:
         """Get neighbor coordinates in clockwise order starting from upper-right."""
-        directions = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
+        directions = [(1, -1), (1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1)]
         return [(q + dq, r + dr) for dq, dr in directions]
 
     def matches_condition(self, cell: HexCell, q: int, r: int, rule: HexRule) -> bool:

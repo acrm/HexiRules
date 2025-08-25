@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, cast
 from application.world_service import WorldService
 from infrastructure.ui.hexios.desktop.ascii.viewmodel import AsciiViewModel
 from infrastructure.ui.hexios.desktop.ascii.renderer import (
@@ -28,8 +28,9 @@ class AsciiUILayout:
             self.controller, selected_info=self.selected_info
         )
         layout = GridLayoutSpec.default_layout()
-        renderer = AsciiRenderer(vm, layout, self.selection)
-        return renderer.render()
+        renderer: AsciiRenderer = AsciiRenderer(vm, layout, self.selection)
+        result = renderer.render()
+        return cast(Tuple[List[str], List[List[Tuple[int, int, str]]]], result)
 
 
 class AsciiControlPanel:

@@ -17,7 +17,9 @@ class FrameVM:
 @dataclass
 class HeaderVM:
     def to_frame(self) -> FrameVM:
-        return FrameVM(id="header", title="HEXIOS v0.0.1 [Ctrl+Q] for quit", hotkey="", lines=[""])
+        return FrameVM(
+            id="header", title="HEXIOS v0.0.1 [Ctrl+Q] for quit", hotkey="", lines=[""]
+        )
 
 
 @dataclass
@@ -100,7 +102,9 @@ class AsciiViewModel:
     frames: List[FrameVM]
 
     @staticmethod
-    def from_controller(controller: WorldService, selected_info: Optional[str] = None) -> "AsciiViewModel":
+    def from_controller(
+        controller: WorldService, selected_info: Optional[str] = None
+    ) -> "AsciiViewModel":
         world = controller.get_current_world()
         active = len(world.hex.get_active_cells())
 

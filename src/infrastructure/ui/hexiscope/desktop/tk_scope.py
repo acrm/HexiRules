@@ -27,6 +27,8 @@ def run_hexiscope(
     canvas.delete("all")
     for (q, r_ax), (cx, cy) in helper.cells.items():
         cell = world.hex.get_cell(q, r_ax)
-        color = "#111111" if cell.state == "_" else STATE_COLORS.get(cell.state, "#ffffff")
+        color = (
+            "#111111" if cell.state == "_" else STATE_COLORS.get(cell.state, "#ffffff")
+        )
         pts = helper.polygon_corners(cx, cy)
         canvas.create_polygon(pts, fill=color, outline="#333333")
