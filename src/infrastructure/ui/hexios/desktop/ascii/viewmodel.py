@@ -105,7 +105,31 @@ class AsciiViewModel:
     def from_controller(
         controller: WorldService, selected_info: Optional[str] = None
     ) -> "AsciiViewModel":
-        world = controller.get_current_world()
+        try:
+            world = controller.get_current_world()
+        except RuntimeError:
+            header_f = HeaderVM().to_frame()
+            worlds_f = FrameVM(
+                id="worlds",
+                title="Worlds",
+                hotkey="w",
+                lines=["No world selected"],
+            )
+            rules_f = FrameVM(id="rules", title="Rules", hotkey="r", lines=[""])
+            history_f = FrameVM(id="history", title="History", hotkey="h", lines=[""])
+            logs_f = FrameVM(id="logs", title="Step Logs", hotkey="l", lines=[""])
+            frames_no_world: List[FrameVM] = [
+                header_f,
+                worlds_f,
+                rules_f,
+                history_f,
+                logs_f,
+            ]
+            if selected_info:
+                frames_no_world.append(SelectedVM(text=selected_info).to_frame())
+            frames_no_world.append(FooterVM().to_frame())
+            return AsciiViewModel(frames=frames_no_world)
+
         active = len(world.hex.get_active_cells())
 
         header_f = HeaderVM().to_frame()

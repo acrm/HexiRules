@@ -44,6 +44,9 @@
 - The panel shall allow entering rules.
 - The panel shall allow advancing the automaton by one step.
 - The panel shall allow clearing all cells.
+- The panel shall render placeholder content when no world is selected.
+- The ASCII renderer shall expose tagged per-character output for automated
+  visualization tests.
 
 ## Execution and Status
 - The system shall execute a single simulation step on demand.

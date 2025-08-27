@@ -24,6 +24,16 @@ class TestAsciiUI(unittest.TestCase):
         width = max(len(line) for line in lines)
         self.assertEqual(width, panel.width)
 
+    def test_render_no_world(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["HEXI_DATA_DIR"] = tmp
+            controller = WorldService()
+            panel = AsciiControlPanel(controller, lambda: None)
+            lines = panel.render().splitlines()
+            width = max(len(line) for line in lines)
+            self.assertEqual(width, panel.width)
+            self.assertIn("No world selected", panel.render())
+
     def test_run_commands(self) -> None:
         world = self.controller.get_current_world()
         world.hex.set_cell(0, 0, "a")
