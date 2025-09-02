@@ -6,6 +6,7 @@ from typing import List, Tuple, Optional, cast
 from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 from application.world_service import WorldService
 from infrastructure.server.session_manager import SessionManager
@@ -33,13 +34,13 @@ app.add_middleware(
 
 sessions = SessionManager()
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-HEXIOS_WEB_DIST = os.path.join(
-    ROOT, "src", "infrastructure", "ui", "hexios", "web", "dist"
-)
-HEXISCOPE_WEB_DIST = os.path.join(
-    ROOT, "src", "infrastructure", "ui", "hexiscope", "web", "dist"
-)
+# Resolve paths based on this file's location to avoid duplicating "src" in the path
+# __file__ = <repo>/src/infrastructure/server/app.py
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_INFRA_ROOT = os.path.dirname(_THIS_DIR)  # <repo>/src/infrastructure
+
+HEXIOS_WEB_DIST = os.path.join(_INFRA_ROOT, "ui", "hexios", "web", "dist")
+HEXISCOPE_WEB_DIST = os.path.join(_INFRA_ROOT, "ui", "hexiscope", "web", "dist")
 
 
 @app.post("/session")
@@ -239,4 +240,45 @@ if os.path.isdir(HEXISCOPE_WEB_DIST):
         "/hexiscope",
         StaticFiles(directory=HEXISCOPE_WEB_DIST, html=True),
         name="hexiscope-web",
+    )
+
+
+@app.get("/")
+def root() -> RedirectResponse:
+    """Redirect the root path to an available UI if present, else to API docs.
+
+    - Prefer HexiOS React desktop at /hexios when its dist is present
+    - Fall back to HexiScope web app if available
+    - Otherwise show FastAPI docs so the root isn't a 404 in desktop mode
+    """
+    if os.path.isdir(HEXIOS_WEB_DIST):
+        return RedirectResponse(url="/hexios/")
+    if os.path.isdir(HEXISCOPE_WEB_DIST):
+        return RedirectResponse(url="/hexiscope/")
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/hexios")
+def hexios_root_redirect() -> RedirectResponse:
+    # Ensure no 404 when missing trailing slash
+    return RedirectResponse(url="/hexios/")
+
+
+@app.get("/hexiscope")
+def hexiscope_root_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/hexiscope/")
+
+
+@app.on_event("startup")
+async def _on_startup() -> None:
+    """Log presence of web dist folders on startup.
+
+    Using a startup event avoids re-instantiating the FastAPI app, which would
+    otherwise drop all previously-registered routes and mounts.
+    """
+    hx = os.path.isdir(HEXIOS_WEB_DIST)
+    hs = os.path.isdir(HEXISCOPE_WEB_DIST)
+    print(
+        f"[server] HEXIOS_WEB_DIST={HEXIOS_WEB_DIST} exists={hx}\n"
+        f"[server] HEXISCOPE_WEB_DIST={HEXISCOPE_WEB_DIST} exists={hs}"
     )

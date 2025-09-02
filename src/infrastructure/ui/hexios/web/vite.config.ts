@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Ensure built asset URLs include the mount prefix served by FastAPI (/hexios)
+  base: '/hexios/',
   root: '.',
   server: {
     port: 5173,

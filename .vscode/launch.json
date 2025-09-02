@@ -71,6 +71,18 @@
       "preLaunchTask": "Build: Desktop"
     },
     {
+        "name": "React Desktop (rebuild)",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/src/main.py",
+        "args": ["--mode", "react-desktop"],
+        "console": "integratedTerminal",
+        "env": {
+            "HEXIOS_REBUILD": "1"
+        },
+        "preLaunchTask": "Web: build"
+    },
+    {
       "name": "Web Dev",
       "type": "node",
       "request": "launch",

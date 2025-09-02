@@ -1,64 +1,83 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Setup: Python deps",
-      "type": "shell",
-      "command": "bash -lc \"PIP_DEFAULT_TIMEOUT=60 python -m pip install -r requirements.txt\"",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Setup: Server deps",
-      "type": "shell",
-      "command": "bash -lc \"PIP_DEFAULT_TIMEOUT=60 python -m pip install -r requirements-server.txt\"",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Setup: Desktop deps",
-      "type": "shell",
-      "command": "bash -lc \"PIP_DEFAULT_TIMEOUT=60 python -m pip install pywebview==5.2\"",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Web: npm install",
-      "type": "shell",
-      "command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping install'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping'; exit 0; fi; cd src/infrastructure/ui/hexios/web && timeout 180s npm install --no-fund --no-audit || { echo 'npm install failed or timed out; continuing without web UI'; true; }\"",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Web: build",
-      "type": "shell",
-      "command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping build'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping build'; exit 0; fi; cd src/infrastructure/ui/hexios/web && ( timeout 300s npm run build || { echo 'npm build failed or timed out; continuing without web UI'; true; } )\"",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build",
-      "type": "shell",
-      "command": "echo Build complete",
-      "group": { "kind": "build", "isDefault": true },
-      "problemMatcher": [],
-      "dependsOn": [
-        "Setup: Python deps",
-        "Setup: Server deps",
-        "Web: npm install"
-      ]
-    },
-    {
-      "label": "Build: Desktop",
-      "type": "shell",
-      "command": "echo Desktop build complete",
-      "group": "build",
-      "problemMatcher": [],
-      "dependsOn": [
-        "Build",
-        "Setup: Desktop deps",
-        "Web: build"
-      ]
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Setup: Python deps",
+			"type": "shell",
+			"command": "bash -lc \"PIP_DEFAULT_TIMEOUT=60 python -m pip install -r requirements.txt\"",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Setup: Server deps",
+			"type": "shell",
+			"command": "bash -lc \"PIP_DEFAULT_TIMEOUT=60 python -m pip install -r requirements-server.txt\"",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Setup: Desktop deps",
+			"type": "shell",
+			"command": "bash -lc \"PIP_DEFAULT_TIMEOUT=60 python -m pip install pywebview==5.2\"",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Web: npm install",
+			"type": "shell",
+			"command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping install'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping'; exit 0; fi; cd src/infrastructure/ui/hexios/web && timeout 180s npm install --no-fund --no-audit || { echo 'npm install failed or timed out; continuing without web UI'; true; }\"",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Web: build",
+			"type": "shell",
+			"command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping build'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping build'; exit 0; fi; cd src/infrastructure/ui/hexios/web && ( timeout 300s npm run build || { echo 'npm build failed or timed out; continuing without web UI'; true; } )\"",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Build",
+			"type": "shell",
+			"command": "echo Build complete",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"dependsOn": [
+				"Setup: Python deps",
+				"Setup: Server deps",
+				"Web: npm install"
+			]
+		},
+		{
+			"label": "Build: Desktop",
+			"type": "shell",
+			"command": "echo Desktop build complete",
+			"group": "build",
+			"problemMatcher": [],
+			"dependsOn": [
+				"Build",
+				"Setup: Desktop deps",
+				"Web: build"
+			]
+		},
+		{
+			"label": "Web: npm install",
+			"type": "shell",
+			"command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping install'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping'; exit 0; fi; cd src/infrastructure/ui/hexios/web && timeout 180s npm install --no-fund --no-audit || { echo 'npm install failed or timed out; continuing without web UI'; true; }\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Web: build",
+			"type": "shell",
+			"command": "bash -lc \"if ! command -v npm >/dev/null 2>&1; then echo 'npm not found, skipping build'; exit 0; fi; if [ ! -d src/infrastructure/ui/hexios/web ]; then echo 'web folder missing, skipping build'; exit 0; fi; cd src/infrastructure/ui/hexios/web && npm run build\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
 }

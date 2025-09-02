@@ -13,6 +13,9 @@ Also exposes a minimal HexCanvas helper used by geometry-focused tests.
 """
 
 import importlib
+import os
+import shutil
+import subprocess
 import math
 from typing import Dict, Tuple, List, Any
 
@@ -29,7 +32,7 @@ class HexCanvas:
     Tests use it to validate coordinate conversions and hex polygon math.
     """
 
-    def __init__(self, root: "tk.Misc", radius: int = 3, cell_size: int = 20) -> None:
+    def __init__(self, root: Any, radius: int = 3, cell_size: int = 20) -> None:
         if tk is None:
             raise RuntimeError("Tkinter not available")
         self.root = root
@@ -86,6 +89,50 @@ def _run_react_desktop() -> None:
     import threading
     import time
     import webbrowser
+    import urllib.request
+    import urllib.error
+
+    def _ensure_web_build(force: bool = False) -> None:
+        """Ensure the HexiOS web UI is built into dist/ before server start.
+
+        - If npm is available, run `npm ci` and `npm run build` in the web folder when dist is missing or force is True.
+        - If npm is not available, print guidance and continue (server can still run without UI).
+        """
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        web_dir = os.path.join(repo_root, "infrastructure", "ui", "hexios", "web")
+        dist_dir = os.path.join(web_dir, "dist")
+        index_html = os.path.join(dist_dir, "index.html")
+
+        if not os.path.isdir(web_dir):
+            print("[react-desktop] Web folder not found; skipping web build.")
+            return
+
+        need_build = force or (not os.path.isfile(index_html))
+        if not need_build:
+            try:
+                assets_dir = os.path.join(dist_dir, "assets")
+                need_build = not (os.path.isdir(assets_dir) and os.listdir(assets_dir))
+            except Exception:
+                need_build = True
+
+        if not need_build:
+            return
+
+        npm = shutil.which("npm") or shutil.which("npm.cmd")
+        if not npm:
+            print("[react-desktop] npm not found; cannot build React UI. Install Node.js LTS to enable auto-build.")
+            print("[react-desktop] Continue without web UI, or prebuild at src/infrastructure/ui/hexios/web.")
+            return
+
+        print("[react-desktop] Building HexiOS web UI (npm ci && npm run build)…")
+        try:
+            subprocess.run([npm, "ci"], cwd=web_dir, check=True)
+            subprocess.run([npm, "run", "build"], cwd=web_dir, check=True)
+            print("[react-desktop] Web build complete.")
+        except subprocess.CalledProcessError as e:
+            print("[react-desktop] Web build failed:", e)
+        except Exception as e:
+            print("[react-desktop] Unexpected error during web build:", e)
 
     try:
         import uvicorn
@@ -97,12 +144,35 @@ def _run_react_desktop() -> None:
     def serve() -> None:
         uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
 
+    # Optionally force a rebuild via env var HEXIOS_REBUILD=1
+    _ensure_web_build(force=os.getenv("HEXIOS_REBUILD") == "1")
+
     t = threading.Thread(target=serve, daemon=True)
     t.start()
-    # Give the server a moment to start
-    time.sleep(0.6)
+    # Wait briefly for the server to start
+    for _ in range(30):
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=0.25):
+                break
+        except Exception:
+            time.sleep(0.1)
 
-    url = "http://127.0.0.1:8000"
+    # Open HexiOS React app if present, otherwise root (which redirects suitably)
+    url = "http://127.0.0.1:8000/hexios/"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        urllib.request.urlopen(req, timeout=0.5).close()
+    except Exception:
+        url = "http://127.0.0.1:8000/"
+    print(f"[react-desktop] Opening URL: {url}")
+    try:
+        with urllib.request.urlopen(url, timeout=1.0) as r:
+            print(
+                "[react-desktop] Probe:", r.status, r.getheader("content-type")
+            )
+    except Exception as ex:
+        print("[react-desktop] Probe error:", ex)
+
     try:
         import webview
 

@@ -69,37 +69,16 @@ class AsciiRenderer:
 
     def render(self) -> Tuple[List[str], List[List[Tuple[int, int, str]]]]:
         W, H = self.layout.width, self.layout.height
-        # Initialize empty surface
-        surface = [[" " for _ in range(W)] for _ in range(H)]
+        # We'll draw borders into a connectivity grid (bitmask per cell) then
+        # translate that into box-drawing characters so adjacent frames share
+        # proper connectors.
+        bits_grid = [[0 for _ in range(W)] for _ in range(H)]
+        # Bits: N=1, E=2, S=4, W=8
+        N, E, S, Wb = 1, 2, 4, 8
+
+        # Keep simple record of border ranges for tagging per line
         tags: List[List[Tuple[int, int, str]]] = [[] for _ in range(H)]
 
-        def put_text(x: int, y: int, text: str, tag: Optional[str] = None) -> None:
-            if 0 <= y < H:
-                for i, ch in enumerate(text):
-                    xi = x + i
-                    if 0 <= xi < W:
-                        surface[y][xi] = ch
-                if tag:
-                    tags[y].append((x, min(W, x + len(text)), tag))
-
-        # Borders helper
-        def box(x: int, y: int, w: int, h: int, sel: bool = False) -> None:
-            if h <= 0 or w <= 0:
-                return
-            horiz = "\u2500"
-            vert = "\u2502"
-            tl, tr, bl, br = "\u250c", "\u2510", "\u2514", "\u2518"
-            tag = "border_sel" if sel else "border"
-            # top
-            put_text(x, y, tl + horiz * (w - 2) + tr, tag)
-            # middle
-            for yy in range(y + 1, y + h - 1):
-                put_text(x, yy, vert, tag)
-                put_text(x + w - 1, yy, vert, tag)
-            # bottom
-            put_text(x, y + h - 1, bl + horiz * (w - 2) + br, tag)
-
-        # Render frames
         frames_by_id = {f.id: f for f in self.vm.frames}
         layout_map = {
             "header": self.layout.header,
@@ -111,25 +90,128 @@ class AsciiRenderer:
             "footer": self.layout.footer,
         }
 
+        frame_border_ranges = {}
+
+        def mark_box(x: int, y: int, w: int, h: int, fid: str, sel: bool = False) -> None:
+            # top row
+            for xi in range(x, x + w):
+                if xi == x:
+                    bits_grid[y][xi] |= (E | S)
+                elif xi == x + w - 1:
+                    bits_grid[y][xi] |= (Wb | S)
+                else:
+                    bits_grid[y][xi] |= (E | Wb)
+            # middle verticals
+            for yy in range(y + 1, y + h - 1):
+                bits_grid[yy][x] |= (N | S)
+                bits_grid[yy][x + w - 1] |= (N | S)
+            # bottom row
+            if h > 1:
+                by = y + h - 1
+                for xi in range(x, x + w):
+                    if xi == x:
+                        bits_grid[by][xi] |= (E | N)
+                    elif xi == x + w - 1:
+                        bits_grid[by][xi] |= (Wb | N)
+                    else:
+                        bits_grid[by][xi] |= (E | Wb)
+
+            # record ranges for tags
+            branges = []
+            branges.append((y, x, x + w, "border_sel" if sel else "border"))
+            branges.append((y + h - 1, x, x + w, "border_sel" if sel else "border"))
+            for yy in range(y + 1, y + h - 1):
+                branges.append((yy, x, x + 1, "border_sel" if sel else "border"))
+                branges.append((yy, x + w - 1, x + w, "border_sel" if sel else "border"))
+            frame_border_ranges[fid] = branges
+
+        # Mark bits for all frames first
         for fid, rect in layout_map.items():
             if fid not in frames_by_id:
                 continue
             frame = frames_by_id[fid]
             x, y, w, h = rect
             sel = self.selection.mode == "frame" and self.selection.frame_id == fid
-            box(x, y, w, h, sel)
-            # Title centered (spans two columns for header/footer)
+            mark_box(x, y, w, h, fid, sel)
+
+        # Map bitmask to box-drawing char
+        bits_to_char = {
+            0: " ",
+            N: "\u2502",
+            S: "\u2502",
+            E: "\u2500",
+            Wb: "\u2500",
+            N | S: "\u2502",
+            E | Wb: "\u2500",
+            N | E: "\u2514",  # up+right -> corner? will be adjusted
+            N | Wb: "\u2518",
+            S | E: "\u250c",
+            S | Wb: "\u2510",
+            N | E | Wb: "\u2524",
+            S | E | Wb: "\u2534",
+            N | S | E: "\u251c",
+            N | S | Wb: "\u252c",
+            N | S | E | Wb: "\u253c",
+        }
+
+        # Fallback helper: compute char from bits
+        def char_for_bits(b: int) -> str:
+            # Normalize symmetrical cases
+            if b in bits_to_char:
+                return bits_to_char[b]
+            # try common combos
+            if b & (E | Wb) and b & (N | S):
+                return "\u253c"
+            if b & (E | Wb):
+                return "\u2500"
+            if b & (N | S):
+                return "\u2502"
+            return " "
+
+        # Build surface from bits
+        surface = [[" " for _ in range(W)] for _ in range(H)]
+        for y in range(H):
+            for x in range(W):
+                ch = char_for_bits(bits_grid[y][x])
+                surface[y][x] = ch
+
+        # Now overlay frame content (body lines) and titles/hotkeys, and record tags
+        for fid, rect in layout_map.items():
+            if fid not in frames_by_id:
+                continue
+            frame = frames_by_id[fid]
+            x, y, w, h = rect
+            # Title centered
             title = f" {frame.title} "
             start = x + max(1, (w - len(title)) // 2)
-            put_text(start, y, title, "title")
-            # Body lines within box
-            max_lines = max(0, h - 2)
-            for i, line in enumerate(frame.lines[:max_lines]):
-                put_text(x + 1, y + 1 + i, line[: w - 2], "normal")
+            for i, ch in enumerate(title):
+                xi = start + i
+                if 0 <= xi < self.layout.width and 0 <= y < self.layout.height:
+                    surface[y][xi] = ch
             # Hotkey hint in corner
             if frame.hotkey:
-                put_text(x + 2, y, f"[{frame.hotkey.upper()}]", "hotkey")
+                hk = f"[{frame.hotkey.upper()}]"
+                for i, ch in enumerate(hk):
+                    xi = x + 2 + i
+                    if 0 <= xi < self.layout.width and 0 <= y < self.layout.height:
+                        surface[y][xi] = ch
+            # Body lines
+            max_lines = max(0, h - 2)
+            for i, line in enumerate(frame.lines[:max_lines]):
+                yy = y + 1 + i
+                if 0 <= yy < self.layout.height:
+                    for j, ch in enumerate(line[: w - 2]):
+                        xi = x + 1 + j
+                        if 0 <= xi < self.layout.width:
+                            surface[yy][xi] = ch
+                    # tag whole content area line
+                    tags[yy].append((x + 1, min(self.layout.width, x + w - 1), "normal"))
 
-        # Compose
+        # Collect border tags from recorded ranges
+        for fid, branges in frame_border_ranges.items():
+            for (yy, sx, ex, tag) in branges:
+                if 0 <= yy < H:
+                    tags[yy].append((sx, min(ex, W), tag))
+
         lines = ["".join(row) for row in surface]
         return lines, tags

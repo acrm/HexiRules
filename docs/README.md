@@ -82,7 +82,10 @@ HexiRules/
 │   └── check_quality.py     # MyPy, Black check, tests
 ├── docs/                    # Project documentation
 │   ├── README.md
-│   └── hex_rule_notation.md
+│   ├── hex_rule_notation.md
+│   ├── HEXIOS_APPLICATION_MODEL.md
+│   ├── HEXIOS_WORLD_USE_CASES.md
+│   └── ASCII_UI_MINI_FRAMEWORK.md
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── pyproject.toml
@@ -117,4 +120,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 Current state: The GUI uses stacked panels (no tabs), HexiDirect is the default mode with a compact switcher, the canvas auto-scales, and worlds can be saved/loaded as JSON. Engines and parsing features are covered by unit tests and a consolidated quality checker.
+
+## 📚 Related Design Docs
+- HexiOS Application Model: `HEXIOS_APPLICATION_MODEL.md`
+- HexiOS Worlds Use-Cases: `HEXIOS_WORLD_USE_CASES.md`
+- ASCII-UI Mini-Framework: `ASCII_UI_MINI_FRAMEWORK.md`
 

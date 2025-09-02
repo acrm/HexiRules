@@ -47,12 +47,15 @@ class HexiRulesGUI:
         self.controller = WorldService()
 
         # ASCII panel
+        ASCII_PANEL_HEIGHT = 51  # Number of lines in the ASCII panel
+        self.ASCII_PANEL_HEIGHT = ASCII_PANEL_HEIGHT
+
         self.ascii_frame = ttk.Frame(self.root)
         self.ascii_frame.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
         self.ascii_text = tk.Text(
             self.ascii_frame,
             width=81,
-            height=51,
+            height=ASCII_PANEL_HEIGHT,
             wrap="none",
             font=("Courier", 10),
             padx=2,
@@ -65,10 +68,10 @@ class HexiRulesGUI:
         self.ascii_text.bind("<Button-4>", lambda e: "break")
         self.ascii_text.bind("<Button-5>", lambda e: "break")
 
-        # Command entry
-        self.command_entry = ttk.Entry(self.ascii_frame, width=80)
-        self.command_entry.pack(side=tk.TOP, pady=(0, 0))
-        self.command_entry.bind("<Return>", self.on_command_enter)
+        # Command input will be captured in ASCII-only mode (no Tk Entry)
+        self.command_buffer = ""
+        # Bind global keys to feed command buffer when ascii panel focused
+        self.root.bind("<Key>", self._on_key)
 
         # Tags for ascii renderer
         self.ascii_text.tag_config("border", foreground="#cccccc")
@@ -109,14 +112,28 @@ class HexiRulesGUI:
         self.update_display()
         self.update_ascii_panel()
 
-    def on_command_enter(self, event) -> None:
-        command = self.command_entry.get().strip()
-        if not command:
+    def _on_key(self, event) -> None:
+        # simple handling: Enter submits, Escape clears buffer, BackSpace deletes
+        if event.keysym == "Return":
+            cmd = self.command_buffer.strip()
+            self.command_buffer = ""
+            if cmd:
+                self.execute_command(cmd)
+                self.update_display()
+            self.update_ascii_panel()
             return
-        self.command_entry.delete(0, tk.END)
-        self.execute_command(command)
-        self.update_display()
-        self.update_ascii_panel()
+        if event.keysym == "Escape":
+            self.command_buffer = ""
+            self.update_ascii_panel()
+            return
+        if event.keysym == "BackSpace":
+            self.command_buffer = self.command_buffer[:-1]
+            self.update_ascii_panel()
+            return
+        # Only accept printable characters
+        if len(event.char) == 1 and event.char.isprintable():
+            self.command_buffer += event.char
+            self.update_ascii_panel()
 
     def execute_command(self, command: str) -> None:
         cmd = command.strip().lower()
@@ -176,6 +193,28 @@ class HexiRulesGUI:
                     self.ascii_text.tag_add(tag, f"{line_no}.{s}", f"{line_no}.{e}")
                 except Exception:
                     pass
+        self.ascii_text.config(state=tk.DISABLED)
+        # Render command prompt overlay at the bottom (above footer)
+        try:
+            prompt_line = self.ascii_text.index(f"{51}.0")
+        except Exception:
+            prompt_line = None
+        # Put command buffer in the selected line (selected frame is at y=33; prompt at 50)
+        # We'll just insert the buffer onto the last visible line manually
+        self.ascii_text.config(state=tk.NORMAL)
+        try:
+            # remove last line then re-insert with prompt
+            prompt_line_num = self.ASCII_PANEL_HEIGHT + 1
+            self.ascii_text.delete(f"{prompt_line_num}.0", tk.END)
+        except Exception:
+            pass
+        try:
+            self.ascii_text.insert(tk.END, "\n")
+            prompt = "> " + (self.command_buffer or "")
+            self.ascii_text.insert(tk.END, prompt)
+            self.ascii_text.tag_add("command_prompt", f"end-1c linestart", f"end-1c")
+        except Exception:
+            pass
         self.ascii_text.config(state=tk.DISABLED)
 
     def _get_current_world(self):
