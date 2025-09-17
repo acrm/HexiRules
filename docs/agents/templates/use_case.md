@@ -1,0 +1,13 @@
+ID: UC-<AREA>-<NNN>
+Title: <short story>
+Actors: user/system
+Preconditions:
+Main Flow:
+- …
+Alternate Flows:
+- …
+Postconditions:
+Related Requirements:
+- REQ-XXXX, …
+Open Questions:
+- …
