@@ -19,7 +19,9 @@ def main() -> int:
         print("Import error: cannot load FastAPI app:", ex)
         return 2
 
-    print("HEXIOS_WEB_DIST:", HEXIOS_WEB_DIST, "exists:", os.path.isdir(HEXIOS_WEB_DIST))
+    print(
+        "HEXIOS_WEB_DIST:", HEXIOS_WEB_DIST, "exists:", os.path.isdir(HEXIOS_WEB_DIST)
+    )
     print(
         "HEXISCOPE_WEB_DIST:",
         HEXISCOPE_WEB_DIST,

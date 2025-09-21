@@ -120,8 +120,12 @@ def _run_react_desktop() -> None:
 
         npm = shutil.which("npm") or shutil.which("npm.cmd")
         if not npm:
-            print("[react-desktop] npm not found; cannot build React UI. Install Node.js LTS to enable auto-build.")
-            print("[react-desktop] Continue without web UI, or prebuild at src/infrastructure/ui/hexios/web.")
+            print(
+                "[react-desktop] npm not found; cannot build React UI. Install Node.js LTS to enable auto-build."
+            )
+            print(
+                "[react-desktop] Continue without web UI, or prebuild at src/infrastructure/ui/hexios/web."
+            )
             return
 
         print("[react-desktop] Building HexiOS web UI (npm ci && npm run build)…")
@@ -167,9 +171,7 @@ def _run_react_desktop() -> None:
     print(f"[react-desktop] Opening URL: {url}")
     try:
         with urllib.request.urlopen(url, timeout=1.0) as r:
-            print(
-                "[react-desktop] Probe:", r.status, r.getheader("content-type")
-            )
+            print("[react-desktop] Probe:", r.status, r.getheader("content-type"))
     except Exception as ex:
         print("[react-desktop] Probe error:", ex)
 

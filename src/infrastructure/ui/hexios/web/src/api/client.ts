@@ -86,3 +86,8 @@ export async function cellsSet(session_id: string, q: number, r: number, state: 
 export async function cellsCurrent(session_id: string): Promise<Cell[]> {
   return j<Cell[]>('/api/cells/current?session_id=' + encodeURIComponent(session_id))
 }
+
+export async function getTuiFrame(session_id: string, w = 80, h = 24): Promise<string> {
+  const res = await j<{ frame: string }>('/api/tui/frame?session_id=' + encodeURIComponent(session_id) + `&w=${w}&h=${h}`)
+  return res.frame
+}

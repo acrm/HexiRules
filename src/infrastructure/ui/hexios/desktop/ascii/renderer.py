@@ -92,29 +92,31 @@ class AsciiRenderer:
 
         frame_border_ranges = {}
 
-        def mark_box(x: int, y: int, w: int, h: int, fid: str, sel: bool = False) -> None:
+        def mark_box(
+            x: int, y: int, w: int, h: int, fid: str, sel: bool = False
+        ) -> None:
             # top row
             for xi in range(x, x + w):
                 if xi == x:
-                    bits_grid[y][xi] |= (E | S)
+                    bits_grid[y][xi] |= E | S
                 elif xi == x + w - 1:
-                    bits_grid[y][xi] |= (Wb | S)
+                    bits_grid[y][xi] |= Wb | S
                 else:
-                    bits_grid[y][xi] |= (E | Wb)
+                    bits_grid[y][xi] |= E | Wb
             # middle verticals
             for yy in range(y + 1, y + h - 1):
-                bits_grid[yy][x] |= (N | S)
-                bits_grid[yy][x + w - 1] |= (N | S)
+                bits_grid[yy][x] |= N | S
+                bits_grid[yy][x + w - 1] |= N | S
             # bottom row
             if h > 1:
                 by = y + h - 1
                 for xi in range(x, x + w):
                     if xi == x:
-                        bits_grid[by][xi] |= (E | N)
+                        bits_grid[by][xi] |= E | N
                     elif xi == x + w - 1:
-                        bits_grid[by][xi] |= (Wb | N)
+                        bits_grid[by][xi] |= Wb | N
                     else:
-                        bits_grid[by][xi] |= (E | Wb)
+                        bits_grid[by][xi] |= E | Wb
 
             # record ranges for tags
             branges = []
@@ -122,7 +124,9 @@ class AsciiRenderer:
             branges.append((y + h - 1, x, x + w, "border_sel" if sel else "border"))
             for yy in range(y + 1, y + h - 1):
                 branges.append((yy, x, x + 1, "border_sel" if sel else "border"))
-                branges.append((yy, x + w - 1, x + w, "border_sel" if sel else "border"))
+                branges.append(
+                    (yy, x + w - 1, x + w, "border_sel" if sel else "border")
+                )
             frame_border_ranges[fid] = branges
 
         # Mark bits for all frames first
@@ -205,11 +209,13 @@ class AsciiRenderer:
                         if 0 <= xi < self.layout.width:
                             surface[yy][xi] = ch
                     # tag whole content area line
-                    tags[yy].append((x + 1, min(self.layout.width, x + w - 1), "normal"))
+                    tags[yy].append(
+                        (x + 1, min(self.layout.width, x + w - 1), "normal")
+                    )
 
         # Collect border tags from recorded ranges
         for fid, branges in frame_border_ranges.items():
-            for (yy, sx, ex, tag) in branges:
+            for yy, sx, ex, tag in branges:
                 if 0 <= yy < H:
                     tags[yy].append((sx, min(ex, W), tag))
 

@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 
 from application.world_service import WorldService
+from application.text_surface import render_world_to_text
 from infrastructure.server.session_manager import SessionManager
 from infrastructure.server.schemas import (
     HistoryItem,
@@ -57,6 +58,15 @@ def create_session() -> dict:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/tui/frame")
+def tui_frame(session_id: str, w: int = 120, h: int = 40) -> dict:
+    svc = sessions.get(session_id)
+    world = svc.get_current_world()
+    idx = svc.history_current_index()
+    text = render_world_to_text(world, idx, width=int(w), height=int(h))
+    return {"frame": text}
 
 
 @app.get("/worlds", response_model=List[WorldSummary])
@@ -210,6 +220,7 @@ def step(session_id: str, req: StepRequest) -> List[str]:
 api_router = APIRouter()
 api_router.add_api_route("/session", create_session, methods=["POST", "GET"])
 api_router.add_api_route("/health", health, methods=["GET"])
+api_router.add_api_route("/tui/frame", tui_frame, methods=["GET"])
 api_router.add_api_route("/worlds", list_worlds, methods=["GET"])
 api_router.add_api_route("/world/select", select_world, methods=["POST"])
 api_router.add_api_route("/world/rename", rename_world, methods=["POST"])

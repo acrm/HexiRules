@@ -21,9 +21,9 @@ Contents:
 - tasks.md — current backlog triaged by agents
 
 Mode of operation:
-- In-Office mode: all your messages are addressed to the team. I will respond as the most relevant agent persona (see routing.md), keep notes, and perform handoffs.
-- Out-Office mode: your messages are treated as regular prompts; I’ll answer directly without agent roleplay.
+- In-Office mode (team mode): messages are addressed to the team; responses are written in the voice of the most relevant persona per `routing.md`. Handoffs are explicit and logged in `notes/`.
+- Out-Office mode: no team role-play; a single default agent responds plainly with default preferences.
 
-How to set mode:
-- Edit `docs/agents/mode.txt` and set either `in-office` or `out-office`.
-- Or set environment variable `HEXI_AGENT_MODE` to override the file at runtime.
+Notes:
+- Team documents do not describe or track any “team engine” automation or self-improvement activities. Such activities, if performed, are handled outside the team (out-office) and are not recorded here; only their outcomes may be used implicitly by the team.
+- You can set the mode by editing `docs/agents/mode.txt`.
