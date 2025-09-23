@@ -4,7 +4,6 @@ import { WorldsPanel } from './WorldsPanel'
 import { GridPanel } from './GridPanel'
 import { RulesPanel } from './RulesPanel'
 import { HistoryPanel } from './HistoryPanel'
-import { PreTUI } from './PreTUI'
 import { StepLogPanel } from './StepLogPanel'
 
 export function App() {
@@ -102,21 +101,15 @@ export function App() {
         </div>
       </div>
       
-      {/* Right: HexiScope (top) + HexiOS TUI frame (bottom) */}
-      <div style={{ minWidth: 0, height: '100%', display: 'grid', gridTemplateRows: '1fr 180px', gap: 6 }}>
-        <div>
-          <GridPanel 
-            sessionId={sessionId} 
-            worldName={worldName} 
-            onLog={addStepLog} 
-            rulesText={rulesText} 
-            refreshTrigger={gridRefreshTrigger} 
-          />
-        </div>
-        <div>
-          <h3 style={{ margin: '0 0 6px 0', fontSize: '12px', fontWeight: 'bold' }}>HexiOS (TUI)</h3>
-          <PreTUI sessionId={sessionId} />
-        </div>
+      {/* Right: HexiScope only (parity with Tk variant) */}
+      <div style={{ minWidth: 0, height: '100%' }}>
+        <GridPanel 
+          sessionId={sessionId} 
+          worldName={worldName} 
+          onLog={addStepLog} 
+          rulesText={rulesText} 
+          refreshTrigger={gridRefreshTrigger} 
+        />
       </div>
     </div>
   )
