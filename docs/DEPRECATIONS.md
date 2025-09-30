@@ -27,14 +27,19 @@ This document lists observed obsolete or redundant structures and the recommende
 4. Keep server code canonical
    - Use `src/infrastructure/server/` as the server implementation; the thin shim `src/server/run_server.py` can be retained temporarily but should reference the canonical server package.
 
-## Proposed Cleanup Steps (non-destructive)
+## Cleanup Status
 - Phase 1 (safe)
-  - Update `.gitignore` for web artifacts and `server.log`. (Done)
-  - Add this deprecation note. (Done)
-- Phase 2 (after verification)
-  - Delete empty folders listed above.
-  - Archive or remove top-level `web/` once parity is confirmed with `src/infrastructure/ui/hexios/web` and tasks don’t depend on it.
-  - Consolidate `src/ui/*` duplicates into `src/infrastructure/ui/*`.
+   - Update `.gitignore` for web artifacts and `server.log`. (Done)
+   - Add this deprecation note. (Done)
+- Phase 2 (executed)
+   - Removed empty/duplicate local directories:
+      - `web/` (top-level)
+      - `src/ui/hexios/web/`
+      - `src/ui/react/`
+      - `src/ui/ascii/`
+      - `src/ui/hexiscope/desktop/`
+   - Canonical web app remains at `src/infrastructure/ui/hexios/web/`.
+   - No tracked files were deleted (these were untracked worktree folders).
 
 ## Notes
 - Tests and tools currently pass; these changes target repo hygiene and do not alter runtime behavior.
