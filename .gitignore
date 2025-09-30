@@ -212,3 +212,12 @@ data/
 node_modules/
 npm-debug.log
 yarn-error.log
+
+# Frontend build outputs (nested)
+**/dist/
+**/.vite/
+**/coverage/
+**/build/
+
+# Local runtime logs
+/server.log
