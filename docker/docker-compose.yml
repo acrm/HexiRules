@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Python API backend
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    container_name: hexirules-server
+    ports:
+      - "8000:8000"
+    environment:
+      - HEXI_HOST=0.0.0.0
+      - HEXI_PORT=8000
+    volumes:
+      - ../data:/app/data
+    restart: unless-stopped
+
+  # React frontend
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    container_name: hexirules-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped

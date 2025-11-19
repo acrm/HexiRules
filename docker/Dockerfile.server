@@ -1,0 +1,24 @@
+FROM python:3.10-slim AS base
+LABEL maintainer="HexiRules Maintainer"
+
+# Set working directory
+WORKDIR /app
+
+# Install server dependencies
+COPY requirements.txt requirements-server.txt ./
+RUN pip install --no-cache-dir -r requirements-server.txt
+
+# Copy application code
+COPY src/ ./src/
+COPY tools/ ./tools/
+
+# Expose the port the server will run on
+EXPOSE 8000
+
+# Define environment variables
+ENV PYTHONPATH=/app
+ENV HEXI_HOST=0.0.0.0
+ENV HEXI_PORT=8000
+
+# Command to run the server
+CMD ["python", "tools/run_server.py"]
